@@ -162,5 +162,4 @@ contract TradeScript is FFIHelper {
         if (h == keccak256("USDT")) return (0x9151434b16b9763660705744891fA906F660EcC5, 6);
         revert(string.concat("Trade.s.sol: unknown token symbol ", sym));
     }
-
 }
