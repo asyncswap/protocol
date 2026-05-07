@@ -9,8 +9,9 @@ import {console} from "forge-std/Script.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
+import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {Currency} from "v4-core/types/Currency.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
 
 /// @notice Submit an AsyncSwap order with token symbols + amount provided via env, pricing
 ///         resolved through `script/price.ts` over `vm.ffi`. Use this for live testing on
@@ -33,6 +34,9 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 ///           TOKEN_IN=ETH TOKEN_OUT=USDC AMOUNT=0.005 \
 ///           forge script script/Trade.s.sol --rpc-url unichain --ffi --broadcast
 contract TradeScript is FFIHelper {
+    using StateLibrary for IPoolManager;
+    using PoolIdLibrary for PoolKey;
+
     AsyncSwap hook;
     Router router;
     IPoolManager manager;
@@ -48,17 +52,19 @@ contract TradeScript is FFIHelper {
         (address inAddr, address outAddr, uint256 amountIn, uint256 amountOutMin) = _resolveTrade();
         (PoolKey memory key, bool zeroForOne) = _buildPoolKey(inAddr, outAddr);
 
-        // Auto-initialize the pool if it isn't yet. PoolManager.initialize reverts
-        // with PoolAlreadyInitialized when the pool exists; swallow that and
-        // continue. The default sqrtPriceX96 is 2^96 (1:1) — override via env.
-        uint160 initSqrtPrice = uint160(vm.envOr("INIT_SQRT_PRICE_X96", uint256(2 ** 96)));
-        vm.startBroadcast(OWNER);
-        try manager.initialize(key, initSqrtPrice) returns (int24) {
+        // Auto-initialize the pool if it isn't yet. We read slot0 first because
+        // wrapping `manager.initialize` in try/catch under vm.startBroadcast()
+        // still records the call for the broadcast replay, which then reverts
+        // outside the try frame with PoolAlreadyInitialized. Reading state up
+        // front lets us conditionally broadcast.
+        (uint160 currentSqrtPrice,,,) = manager.getSlot0(key.toId());
+        if (currentSqrtPrice == 0) {
+            uint160 initSqrtPrice = uint160(vm.envOr("INIT_SQRT_PRICE_X96", uint256(2 ** 96)));
+            vm.startBroadcast(OWNER);
+            manager.initialize(key, initSqrtPrice);
+            vm.stopBroadcast();
             console.log("Pool initialized at sqrtPriceX96:", uint256(initSqrtPrice));
-        } catch {
-            // Already initialized — fine, continue with the swap.
         }
-        vm.stopBroadcast();
 
         uint64 nonce = uint64(block.timestamp);
 
