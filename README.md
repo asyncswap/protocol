@@ -1,66 +1,91 @@
-## Foundry
+# AsyncSwap Protocol
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A Uniswap v4 hook that turns an exact-input swap into an open async limit order.
+The maker deposits their input via `_beforeSwap`; a filler later settles by
+paying the maker's limit-priced output. v1 is full-fill only — partials are not
+supported and a successful fill deletes the record entirely.
 
-Foundry consists of:
+Built around three contracts:
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- **`AsyncSwap.sol`** — the v4 hook. Captures maker input, stores the open order,
+  emits `AsyncOrderCreated` / `AsyncOrderFilled` / `AsyncOrderCancelled` /
+  `AsyncOrderPriceUpdated` events.
+- **`Router.sol`** — thin entrypoint for makers (`swap`), fillers (`fillOrder`),
+  and cancellations (`cancelOrder`). Wraps every action in a `PoolManager.unlock`
+  context so the hook can do PM-side accounting. Native ETH is supported in
+  both directions via `payable` + `msg.value`.
+- **`libraries/AsyncFiller.sol`** — per-order storage + fill / cancel /
+  updatePrice mechanics. Settles real tokens directly to the maker (no 6909
+  withdrawal step required).
 
-## Documentation
+## Deployments
 
-https://book.getfoundry.sh/
+### Unichain (chainId `130`)
 
-## Usage
+| Contract     | Address                                                                                                                  | Verified                                                                                            |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| AsyncSwap    | [`0x91db9941a44c19a5409345C5f2f8A2C1f81ba888`](https://uniscan.xyz/address/0x91db9941a44c19a5409345c5f2f8a2c1f81ba888)    | [Uniscan](https://uniscan.xyz/address/0x91db9941a44c19a5409345c5f2f8a2c1f81ba888#code) · Sourcify   |
+| Router       | [`0x2A144DAb2EBcD4adfA239Ef86bBBa148CbBDfd37`](https://uniscan.xyz/address/0x2a144dab2ebcd4adfa239ef86bbba148cbbdfd37)    | [Uniscan](https://uniscan.xyz/address/0x2a144dab2ebcd4adfa239ef86bbba148cbbdfd37#code) · Sourcify   |
+| PoolManager  | [`0x1F98400000000000000000000000000000000004`](https://uniscan.xyz/address/0x1f98400000000000000000000000000000000004)    | (canonical Uniswap v4)                                                                              |
 
-### Build
+The hook address has the `0x91…` prefix to make it visually identifiable; CREATE2
+salt is mined offline by `script/mine-hook-salt.ts`.
 
-```shell
-$ forge build
+The full registry — including the per-chain start block the indexer reads from —
+lives at `deployments/<chainId>.json`, written by the deploy scripts.
+
+## Build & test
+
+```sh
+# install deps
+forge soldeer install
+
+# build
+forge build
+
+# run the full test suite (ERC20 pool + native ETH pool)
+forge test
 ```
 
-### Test
+The native ETH coverage lives in `test/NativeAsyncSwap.t.sol`; the ERC20 pool
+coverage lives in `test/AsyncSwap.t.sol`. Both share `test/SetupHook.t.sol` for
+the basic deploy + pool init scaffold.
 
-```shell
-$ forge test
+## Local pipeline
+
+`dev/start.sh` chains the five scripts against a running local Anvil:
+
+```
+00 deploy PoolManager  (or record canonical for known chains)
+01 deploy hook + Router (mines salt via FFI; verifies prefix + flag bits)
+02 init pool + mint mock tokens
+03 swap                 (maker submits an order)
+04 cancelOrder          (commented; uncomment to test cancel instead of fill)
+05 executeOrder         (filler completes the order)
 ```
 
-### Format
+Each script writes / reads from `deployments/<chainId>.json` so subsequent
+scripts pick up addresses from the registry, not from `broadcast/` artifacts.
 
-```shell
-$ forge fmt
-```
+## Verifying a fresh deploy on Uniscan
 
-### Gas Snapshots
+`forge script ... --verify --verifier etherscan` silently routes to Sourcify on
+some chains. For Uniscan specifically, run after the deploy:
 
-```shell
-$ forge snapshot
-```
+```sh
+forge verify-contract \
+  --chain unichain \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --watch \
+  --constructor-args 0x000000000000000000000000<poolManagerAddress> \
+  <hookAddress> \
+  src/AsyncSwap.sol:AsyncSwap
 
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+forge verify-contract \
+  --chain unichain \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --watch \
+  --constructor-args 0x000000000000000000000000<poolManagerAddress>000000000000000000000000<hookAddress> \
+  <routerAddress> \
+  src/Router.sol:Router
 ```
