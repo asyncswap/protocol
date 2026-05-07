@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib", "dependencies"]
+ffi = true
+fs_permissions = [
+  { access = "read", path = "./broadcast/" },
+  { access = "read-write", path = "./deployments/" },
+]
+
+[dependencies]
+forge-std = "1.16.0"
+uniswap-v4-core = "4"
+solmate = "6.8.0"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

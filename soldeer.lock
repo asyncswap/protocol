@@ -1,0 +1,20 @@
+[[dependencies]]
+name = "forge-std"
+version = "1.16.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_16_0_27-04-2026_06:23:43_forge-std-1.16.zip"
+checksum = "3ebe6ca2011b1a11b0f3d4c2a53f58e4d149dc0c58a4052a39405391cd2ae8ce"
+integrity = "c433748f09889d3e2b3090303f4bc03700b363bd952e22b1801db00cfac7b809"
+
+[[dependencies]]
+name = "solmate"
+version = "6.8.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/solmate/6_8_0_29-10-2024_19:01:45_solmate.zip"
+checksum = "e3ec0f0182cb3bbedecf8a0bcc39897266534a795ec732b2b03dafa285d78a5b"
+integrity = "a22e5a352de0231f671ee8adf5667bbe83c50012670083987bd1099a69feb429"
+
+[[dependencies]]
+name = "uniswap-v4-core"
+version = "4"
+url = "https://soldeer-revisions.s3.amazonaws.com/uniswap-v4-core/4_28-02-2025_23:27:23_uniswap-v4-core-4.zip"
+checksum = "cd91c1b34ad73028bddaeb9fd676a957962f7e4ab671998f4439aa1f474010c8"
+integrity = "859f1409f40b591e2cf337d02591d4ec53013631d2e958a9f03b84af88410abb"
