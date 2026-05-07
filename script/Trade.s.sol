@@ -6,6 +6,7 @@ import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {Router} from "@async-swap/Router.sol";
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {console} from "forge-std/Script.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {Currency} from "v4-core/types/Currency.sol";
@@ -34,16 +35,31 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 contract TradeScript is FFIHelper {
     AsyncSwap hook;
     Router router;
+    IPoolManager manager;
 
     function setUp() public {
         (address h, address r) = _getDeployedHook();
         hook = AsyncSwap(payable(h));
         router = Router(r);
+        manager = IPoolManager(_getDeployedPoolManager());
     }
 
     function run() public {
         (address inAddr, address outAddr, uint256 amountIn, uint256 amountOutMin) = _resolveTrade();
         (PoolKey memory key, bool zeroForOne) = _buildPoolKey(inAddr, outAddr);
+
+        // Auto-initialize the pool if it isn't yet. PoolManager.initialize reverts
+        // with PoolAlreadyInitialized when the pool exists; swallow that and
+        // continue. The default sqrtPriceX96 is 2^96 (1:1) — override via env.
+        uint160 initSqrtPrice = uint160(vm.envOr("INIT_SQRT_PRICE_X96", uint256(2 ** 96)));
+        vm.startBroadcast(OWNER);
+        try manager.initialize(key, initSqrtPrice) returns (int24) {
+            console.log("Pool initialized at sqrtPriceX96:", uint256(initSqrtPrice));
+        } catch {
+            // Already initialized — fine, continue with the swap.
+        }
+        vm.stopBroadcast();
+
         uint64 nonce = uint64(block.timestamp);
 
         AsyncOrder memory order = AsyncOrder({
