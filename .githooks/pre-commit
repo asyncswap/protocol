@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Auto-format staged Solidity files with `forge fmt` and re-stage them, so
+# what hits the index matches what `forge fmt --check` enforces in CI.
+#
+# To enable in your local clone (one-time):
+#   git config core.hooksPath .githooks
+#
+# To bypass on a single commit (rare):
+#   git commit --no-verify
+
+set -e
+
+# Only operate on .sol files that are added/copied/modified in the index.
+SOL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sol$' || true)
+
+if [ -z "$SOL_FILES" ]; then
+  exit 0
+fi
+
+if ! command -v forge >/dev/null 2>&1; then
+  echo "pre-commit: forge not in PATH; skipping format. Install foundryup or run 'forge fmt' manually." >&2
+  exit 0
+fi
+
+# Format in place. forge fmt is idempotent — already-formatted files are no-ops.
+echo "pre-commit: forge fmt $(echo "$SOL_FILES" | wc -l | tr -d ' ') file(s)…"
+# shellcheck disable=SC2086
+forge fmt $SOL_FILES
+
+# Re-stage anything forge fmt rewrote, so the commit reflects the formatted
+# version (not the unformatted version that was originally staged).
+# shellcheck disable=SC2086
+git add $SOL_FILES

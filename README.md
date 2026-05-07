@@ -51,6 +51,19 @@ The native ETH coverage lives in `test/NativeAsyncSwap.t.sol`; the ERC20 pool
 coverage lives in `test/AsyncSwap.t.sol`. Both share `test/SetupHook.t.sol` for
 the basic deploy + pool init scaffold.
 
+### Pre-commit hook
+
+CI enforces `forge fmt --check`. Enable the local pre-commit hook so commits
+are auto-formatted before they leave your machine:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The hook runs `forge fmt` on staged `.sol` files and re-stages them, so the
+commit always reflects the formatted version. To bypass for a single commit:
+`git commit --no-verify`.
+
 ## Local pipeline
 
 `dev/start.sh` chains the five scripts against a running local Anvil:
