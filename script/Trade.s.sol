@@ -80,9 +80,9 @@ contract TradeScript is FFIHelper {
         internal
         returns (address inAddr, address outAddr, uint256 amountIn, uint256 amountOutMin)
     {
-        string memory inSym = vm.envString("TOKEN_IN");
-        string memory outSym = vm.envString("TOKEN_OUT");
-        string memory amountStr = vm.envString("AMOUNT");
+        string memory inSym = vm.envOr("TOKEN_IN", string("ETH"));
+        string memory outSym = vm.envOr("TOKEN_OUT", string("USDC"));
+        string memory amountStr = vm.envOr("AMOUNT", string("0.0001"));
         uint256 slippageBps = vm.envOr("SLIPPAGE_BPS", uint256(100));
 
         (inAddr,) = _resolveToken(inSym);
