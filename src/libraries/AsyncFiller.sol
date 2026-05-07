@@ -49,11 +49,7 @@ library AsyncFiller {
     );
 
     event AsyncOrderFilled(
-        PoolId indexed poolId,
-        bytes32 indexed orderId,
-        address indexed filler,
-        uint256 amountIn,
-        uint256 amountOutMin
+        PoolId indexed poolId, bytes32 indexed orderId, address indexed filler, uint256 amountIn, uint256 amountOutMin
     );
 
     event AsyncOrderCancelled(PoolId indexed poolId, bytes32 indexed orderId, address indexed owner, uint256 amountIn);
@@ -64,11 +60,7 @@ library AsyncFiller {
     error NotAuthorizedExecutor();
     error ZeroAmount();
 
-    function isExecutor(AsyncOrder calldata order, State storage self, address executor)
-        internal
-        view
-        returns (bool)
-    {
+    function isExecutor(AsyncOrder calldata order, State storage self, address executor) internal view returns (bool) {
         return self.setExecutor[order.owner][executor];
     }
 

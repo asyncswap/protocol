@@ -51,10 +51,7 @@ contract SwapScript is FFIHelper {
             order,
             abi.encode(
                 AsyncSwap.UserParams({
-                    user: OWNER,
-                    executor: address(router),
-                    amountOutMin: order.amountOutMin,
-                    nonce: nonce
+                    user: OWNER, executor: address(router), amountOutMin: order.amountOutMin, nonce: nonce
                 })
             )
         );

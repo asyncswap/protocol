@@ -63,8 +63,7 @@ contract DeployHookScript is FFIHelper {
             Entry({name: "PoolManager", addr: address(manager), startBlock: deployBlock, txHash: bytes32(0)})
         );
         _upsertEntry(
-            block.chainid,
-            Entry({name: "AsyncSwap", addr: address(hook), startBlock: deployBlock, txHash: bytes32(0)})
+            block.chainid, Entry({name: "AsyncSwap", addr: address(hook), startBlock: deployBlock, txHash: bytes32(0)})
         );
         _upsertEntry(
             block.chainid, Entry({name: "Router", addr: address(router), startBlock: deployBlock, txHash: bytes32(0)})

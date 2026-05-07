@@ -139,14 +139,12 @@ contract Router {
             // router itself holds the ETH (forwarded via msg.value on swap()), and the
             // CurrencySettler.settle native branch sends from address(this) regardless
             // of the `payer` argument, so we still pass `user` for symmetry/logging.
-            Currency input =
-                orderData.order.zeroForOne ? orderData.order.key.currency0 : orderData.order.key.currency1;
+            Currency input = orderData.order.zeroForOne ? orderData.order.key.currency0 : orderData.order.key.currency1;
             input.settle(POOLMANAGER, user, orderData.order.amountIn, false);
         } else if (action == uint8(ActionType.FillOrder)) {
             // Read the LIVE price from hook storage — the caller's `order.amountOutMin` may be
             // stale if the maker called updatePrice after submitting.
-            Currency output =
-                orderData.order.zeroForOne ? orderData.order.key.currency1 : orderData.order.key.currency0;
+            Currency output = orderData.order.zeroForOne ? orderData.order.key.currency1 : orderData.order.key.currency0;
             bytes32 id = keccak256(
                 abi.encode(
                     orderData.order.key.toId(), orderData.order.owner, orderData.order.zeroForOne, orderData.order.nonce
@@ -166,5 +164,4 @@ contract Router {
 
         return "";
     }
-
 }
