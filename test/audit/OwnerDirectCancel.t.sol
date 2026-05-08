@@ -38,10 +38,7 @@ contract SmartMaker is IUnlockCallback {
             order,
             abi.encode(
                 AsyncSwap.UserParams({
-                    user: address(this),
-                    executor: address(router),
-                    amountOutMin: order.amountOutMin,
-                    nonce: order.nonce
+                    user: address(this), executor: address(router), amountOutMin: order.amountOutMin, nonce: order.nonce
                 })
             )
         );
@@ -92,7 +89,8 @@ contract OwnerDirectCancelTest is SetupHook {
         // and the cancel succeeds without re-granting.
         maker.cancelDirectly(order);
         assertEq(token0.balanceOf(address(maker)), makerToken0Before, "input refunded");
-        (uint256 amountIn,) = hook.asyncOrderInfo(poolId, keccak256(abi.encode(poolId, address(maker), true, uint64(0))));
+        (uint256 amountIn,) =
+            hook.asyncOrderInfo(poolId, keccak256(abi.encode(poolId, address(maker), true, uint64(0))));
         assertEq(amountIn, 0, "order deleted");
     }
 }

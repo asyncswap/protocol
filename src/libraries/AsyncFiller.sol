@@ -130,7 +130,9 @@ library AsyncFiller {
     function cancel(State storage self, AsyncOrder calldata order, bytes32 id, address hook, address executor)
         internal
     {
-        if (executor != order.owner && !self.setExecutor[order.owner][executor]) revert NotAuthorizedExecutor();
+        if (executor != order.owner && !self.setExecutor[order.owner][executor]) {
+            revert NotAuthorizedExecutor();
+        }
         OrderInfo storage info = self.orders[id];
         uint256 amountIn = info.amountIn;
         if (amountIn == 0) revert OrderNotFound();
