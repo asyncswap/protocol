@@ -123,12 +123,14 @@ library AsyncFiller {
         emit AsyncOrderFilled(order.key.toId(), id, filler, amountIn, amountOutMin);
     }
 
-    /// @notice Maker cancels an unfilled order via an authorized executor. Must be called inside
-    ///         an unlock context. The maker reclaims `amountIn` of input as a 6909 claim.
+    /// @notice Cancel an unfilled order. Must be called inside an unlock context. Auth: `executor`
+    ///         must be either the order owner themselves (smart-contract makers calling the hook
+    ///         directly from their own unlock) or an executor the maker authorised via
+    ///         `setExecutor`. Funds always return to `order.owner`.
     function cancel(State storage self, AsyncOrder calldata order, bytes32 id, address hook, address executor)
         internal
     {
-        if (!self.setExecutor[order.owner][executor]) revert NotAuthorizedExecutor();
+        if (executor != order.owner && !self.setExecutor[order.owner][executor]) revert NotAuthorizedExecutor();
         OrderInfo storage info = self.orders[id];
         uint256 amountIn = info.amountIn;
         if (amountIn == 0) revert OrderNotFound();
