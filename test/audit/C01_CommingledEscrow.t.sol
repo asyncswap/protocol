@@ -44,8 +44,11 @@ contract C01_CommingledEscrowTest is Test {
         router = new Router(manager, hook);
 
         key = PoolKey({
-            currency0: currency0, currency1: currency1,
-            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG, tickSpacing: int24(1), hooks: hook
+            currency0: currency0,
+            currency1: currency1,
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            tickSpacing: int24(1),
+            hooks: hook
         });
         poolId = key.toId();
         manager.initialize(key, 2 ** 96);
@@ -57,12 +60,18 @@ contract C01_CommingledEscrowTest is Test {
     }
 
     function _order(address ownerAddr, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
-        internal view returns (AsyncOrder memory)
+        internal
+        view
+        returns (AsyncOrder memory)
     {
         return AsyncOrder({
-            key: key, owner: ownerAddr, zeroForOne: zeroForOne,
-            amountIn: amountIn, amountOutMin: amountOutMin,
-            sqrtPrice: 2 ** 96, nonce: nonce
+            key: key,
+            owner: ownerAddr,
+            zeroForOne: zeroForOne,
+            amountIn: amountIn,
+            amountOutMin: amountOutMin,
+            sqrtPrice: 2 ** 96,
+            nonce: nonce
         });
     }
 
@@ -70,18 +79,16 @@ contract C01_CommingledEscrowTest is Test {
         uint256 STRANDED = 10 ether;
         vm.deal(address(hook), STRANDED);
 
-        AsyncOrder memory order = _order({
-            ownerAddr: attacker, zeroForOne: false,
-            amountIn: 1, amountOutMin: STRANDED, nonce: 0
-        });
+        AsyncOrder memory order =
+            _order({ownerAddr: attacker, zeroForOne: false, amountIn: 1, amountOutMin: STRANDED, nonce: 0});
 
         vm.startPrank(attacker);
         erc20.approve(address(router), 1);
         router.swap(
             order,
-            abi.encode(AsyncSwap.UserParams({
-                user: attacker, executor: address(router), amountOutMin: STRANDED, nonce: 0
-            }))
+            abi.encode(
+                AsyncSwap.UserParams({user: attacker, executor: address(router), amountOutMin: STRANDED, nonce: 0})
+            )
         );
         vm.stopPrank();
 

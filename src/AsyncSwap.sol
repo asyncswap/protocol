@@ -50,8 +50,7 @@ contract AsyncSwap is BaseHook {
     ///      the filler's just-received deposit rather than the contract's
     ///      accumulated balance (which may include donations, stranded ETH,
     ///      or in-flight native-input escrow). Cleared after each settle.
-    bytes32 constant PENDING_NATIVE_DEPOSIT_SLOT =
-        0x9c2a7e4f3b1d8a5c6e0f2d4b7a9c1e3d5f8b6a0c2e4d7b9f1a3c5e7d9b1f3a50;
+    bytes32 constant PENDING_NATIVE_DEPOSIT_SLOT = 0x9c2a7e4f3b1d8a5c6e0f2d4b7a9c1e3d5f8b6a0c2e4d7b9f1a3c5e7d9b1f3a50;
 
     /// @notice Hook params decoded from the `hookData` of `IPoolManager.swap`. The maker sets
     ///         `amountOutMin` (their limit price) and `nonce` (so they can address this order

@@ -7,7 +7,7 @@ import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 
 contract H01_MakerFrontrunTest is SetupHook {
     address alice = makeAddr("alice"); // maker (attacker)
-    address bob   = makeAddr("bob");   // filler (victim)
+    address bob = makeAddr("bob"); // filler (victim)
 
     function setUp() public override {
         super.setUp();
@@ -16,17 +16,23 @@ contract H01_MakerFrontrunTest is SetupHook {
     }
 
     function _orderFromMaker(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
-        internal view returns (AsyncOrder memory)
+        internal
+        view
+        returns (AsyncOrder memory)
     {
         return AsyncOrder({
-            key: key, owner: maker, zeroForOne: zeroForOne,
-            amountIn: amountIn, amountOutMin: amountOutMin,
-            sqrtPrice: 2 ** 96, nonce: nonce
+            key: key,
+            owner: maker,
+            zeroForOne: zeroForOne,
+            amountIn: amountIn,
+            amountOutMin: amountOutMin,
+            sqrtPrice: 2 ** 96,
+            nonce: nonce
         });
     }
 
     function test_RevertWhen_H01_FillerProtectionViolated() public {
-        uint256 amountIn       = 1e18;
+        uint256 amountIn = 1e18;
         uint256 originalOutMin = 0.8e18;
         uint256 frontrunOutMin = 1.1e18;
 
@@ -36,9 +42,9 @@ contract H01_MakerFrontrunTest is SetupHook {
         token0.approve(address(router), amountIn);
         router.swap(
             order,
-            abi.encode(AsyncSwap.UserParams({
-                user: alice, executor: address(router), amountOutMin: originalOutMin, nonce: 0
-            }))
+            abi.encode(
+                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: originalOutMin, nonce: 0})
+            )
         );
         vm.stopPrank();
 

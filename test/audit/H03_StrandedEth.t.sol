@@ -44,8 +44,11 @@ contract H03_StrandedEthTest is Test {
         router = new Router(manager, hook);
 
         key = PoolKey({
-            currency0: currency0, currency1: currency1,
-            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG, tickSpacing: int24(1), hooks: hook
+            currency0: currency0,
+            currency1: currency1,
+            fee: LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            tickSpacing: int24(1),
+            hooks: hook
         });
         poolId = key.toId();
         manager.initialize(key, 2 ** 96);
@@ -59,12 +62,18 @@ contract H03_StrandedEthTest is Test {
     }
 
     function _order(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
-        internal view returns (AsyncOrder memory)
+        internal
+        view
+        returns (AsyncOrder memory)
     {
         return AsyncOrder({
-            key: key, owner: maker, zeroForOne: zeroForOne,
-            amountIn: amountIn, amountOutMin: amountOutMin,
-            sqrtPrice: 2 ** 96, nonce: nonce
+            key: key,
+            owner: maker,
+            zeroForOne: zeroForOne,
+            amountIn: amountIn,
+            amountOutMin: amountOutMin,
+            sqrtPrice: 2 ** 96,
+            nonce: nonce
         });
     }
 
@@ -77,9 +86,7 @@ contract H03_StrandedEthTest is Test {
         vm.expectRevert();
         router.swap{value: 0}(
             atkOrder,
-            abi.encode(AsyncSwap.UserParams({
-                user: attacker, executor: address(router), amountOutMin: 1 wei, nonce: 7
-            }))
+            abi.encode(AsyncSwap.UserParams({user: attacker, executor: address(router), amountOutMin: 1 wei, nonce: 7}))
         );
         vm.stopPrank();
     }
