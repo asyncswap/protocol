@@ -42,6 +42,16 @@ contract AsyncSwap is BaseHook {
 
     error UnsupportedLiquidity();
     error ExactInputOnly();
+    error UnaccountedNativeOutput();
+
+    /// @dev Transient slot — keccak256("asyncswap.hook.pendingNativeDeposit") - 1.
+    ///      Tracks ETH deposited to this contract within the current tx via
+    ///      `receive()`, so `executeOrder` can settle native output only out of
+    ///      the filler's just-received deposit rather than the contract's
+    ///      accumulated balance (which may include donations, stranded ETH,
+    ///      or in-flight native-input escrow). Cleared after each settle.
+    bytes32 constant PENDING_NATIVE_DEPOSIT_SLOT =
+        0x9c2a7e4f3b1d8a5c6e0f2d4b7a9c1e3d5f8b6a0c2e4d7b9f1a3c5e7d9b1f3a50;
 
     /// @notice Hook params decoded from the `hookData` of `IPoolManager.swap`. The maker sets
     ///         `amountOutMin` (their limit price) and `nonce` (so they can address this order
@@ -125,6 +135,20 @@ contract AsyncSwap is BaseHook {
     function executeOrder(AsyncOrder calldata order, bytes calldata data) external {
         address filler = abi.decode(data, (address));
         bytes32 id = order.orderId();
+
+        // Native-output settlement may only consume ETH that the filler deposited
+        // in this tx (via the Router's pre-unlock forward). Stranded balance is
+        // not drawable. Decrement the per-tx ledger to amountOutMin's worth.
+        Currency output = order.zeroForOne ? order.key.currency1 : order.key.currency0;
+        if (output.isAddressZero()) {
+            uint256 pending;
+            assembly ("memory-safe") { pending := tload(PENDING_NATIVE_DEPOSIT_SLOT) }
+            (, uint256 amountOutMin) = (this.asyncOrderInfo(order.key.toId(), id));
+            if (pending < amountOutMin) revert UnaccountedNativeOutput();
+            assembly ("memory-safe") {
+                tstore(PENDING_NATIVE_DEPOSIT_SLOT, sub(pending, amountOutMin))
+            }
+        }
         asyncOrders[order.key.toId()].fill(order, id, address(this), msg.sender, filler);
     }
 
@@ -188,7 +212,9 @@ contract AsyncSwap is BaseHook {
     /// @dev Extracted to keep `_beforeSwap` stack-shallow.
     function _createOrder(PoolId poolId, bool zeroForOne, uint256 amountIn, UserParams memory hookData) private {
         AsyncFiller.State storage state = asyncOrders[poolId];
-        state.setExecutor[hookData.user][hookData.executor] = true;
+
+        // executor must already be authorised by the user — no implicit grant via hookData.
+        if (!state.setExecutor[hookData.user][hookData.executor]) revert AsyncFiller.NotAuthorizedExecutor();
 
         bytes32 id = keccak256(abi.encode(poolId, hookData.user, zeroForOne, hookData.nonce));
         if (amountIn == 0 || hookData.amountOutMin == 0) revert AsyncFiller.ZeroAmount();
@@ -199,9 +225,23 @@ contract AsyncSwap is BaseHook {
         );
     }
 
-    /// @notice Accept ETH transfers. The Router forwards `msg.value` to the hook
-    /// when a fill is paying out native ETH; the hook then settles that ETH to
-    /// PM inside `fill()`. Without this, native-output fills revert at the
-    /// router-to-hook hand-off.
-    receive() external payable {}
+    /// @notice Maker explicitly authorises an executor (typically the Router) to submit
+    ///         and fill orders on their behalf. Without this grant, `_createOrder` reverts
+    ///         on the maker's first swap. Pairs with `revokeExecutor` for rotation.
+    function setExecutor(PoolId poolId, address executor, bool allow) external {
+        asyncOrders[poolId].setExecutor[msg.sender][executor] = allow;
+    }
+
+    /// @notice Accept ETH transfers. The Router (or any caller paying for a native-output
+    /// fill) forwards `msg.value` to the hook before triggering `executeOrder`. The hook
+    /// records the deposit on a transient slot so `executeOrder` can settle ONLY against
+    /// the filler's freshly-deposited ETH — never against donated, stranded, or in-flight
+    /// escrow balance. Plain transfers (no executeOrder follow-up) just sit in balance
+    /// and can be returned by recovery flows; they cannot be drained via fillOrder.
+    receive() external payable {
+        assembly ("memory-safe") {
+            let cur := tload(PENDING_NATIVE_DEPOSIT_SLOT)
+            tstore(PENDING_NATIVE_DEPOSIT_SLOT, add(cur, callvalue()))
+        }
+    }
 }

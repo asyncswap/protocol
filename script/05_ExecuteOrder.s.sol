@@ -25,7 +25,7 @@ contract ExecuteAsyncOrderScript is FFIHelper {
 
         vm.startBroadcast(OWNER);
         IERC20Minimal(Currency.unwrap(output)).approve(address(router), order.amountOutMin);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopBroadcast();
 
         console.log("Async order filled. nonce:", uint256(order.nonce));

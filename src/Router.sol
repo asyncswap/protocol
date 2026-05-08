@@ -30,6 +30,8 @@ contract Router {
     bytes32 constant USER_LOCATION = 0x3dde20d9bf5cc25a9f487c6d6b54d3c19e3fa4738b91a7a509d4fc4180a72356;
     /// keccak256("Router.AsyncFiller") - 1
     bytes32 constant ASYNC_FILLER_LOCATION = 0xd972a937b59dc5cb8c692dd9f211e85afa8def4caee6e05b31db0f53e16d02e0;
+    /// @dev keccak256("asyncswap.router.maxPrice") - 1
+    bytes32 constant MAX_PRICE_LOCATION = 0x6b4f8e2c9d5a0b7e1f3c2a8d4e9f0b6c5a1d8e7f2b3c4d5e6a7f8b9c0d1e2f30;
 
     enum ActionType {
         Swap,
@@ -54,8 +56,9 @@ contract Router {
 
     /// @notice Maker submits a new async order. `userData` must encode `AsyncSwap.UserParams`
     ///         with `executor == address(this)` so the router is authorized to fill later.
-    ///         The maker's `amountOutMin` and `nonce` are read from `userData`, NOT `order`,
-    ///         because beforeSwap rebuilds the order from hookData server-side.
+    ///         `userData.amountOutMin` and `userData.nonce` MUST equal `order.amountOutMin`
+    ///         and `order.nonce` — the router enforces this so the limit price the maker
+    ///         signs in `order` is exactly what beforeSwap stores via hookData.
     ///
     ///         Native input (currency0 = address(0) and zeroForOne = true, OR currency1 =
     ///         address(0) and zeroForOne = false) requires `msg.value == order.amountIn` —
@@ -65,6 +68,17 @@ contract Router {
         address onBehalf = address(this);
         AsyncSwap.UserParams memory userParams = abi.decode(userData, (AsyncSwap.UserParams));
         require(userParams.executor == address(this), "Use router as your executor!");
+        require(userParams.amountOutMin == order.amountOutMin, "amountOutMin mismatch");
+        require(userParams.nonce == order.nonce, "nonce mismatch");
+
+        // msg.value invariant: native input requires exact deposit, ERC20 input forbids overpay.
+        // Without this an attacker can sweep ETH stranded from prior overpays in this contract.
+        Currency input = order.zeroForOne ? order.key.currency0 : order.key.currency1;
+        if (input.isAddressZero()) {
+            require(msg.value == order.amountIn, "msg.value != order.amountIn");
+        } else {
+            require(msg.value == 0, "msg.value forbidden for ERC20 input");
+        }
         assembly ("memory-safe") {
             tstore(USER_LOCATION, caller())
             tstore(ASYNC_FILLER_LOCATION, onBehalf)
@@ -77,20 +91,28 @@ contract Router {
     ///         that amount; for native output (currency0 = address(0) on a zeroForOne = true
     ///         order, or currency1 = address(0) on a zeroForOne = false order), the caller
     ///         forwards ETH via `msg.value`.
-    function fillOrder(AsyncOrder calldata order, bytes calldata) external payable {
+    ///
+    ///         `maxPrice` caps the live price the router will pay for the maker's output —
+    ///         it protects fillers from a maker who front-runs them with `updatePrice` to
+    ///         bump the order's stored price. Pass `type(uint256).max` to disable the check.
+    function fillOrder(AsyncOrder calldata order, uint256 maxPrice, bytes calldata) external payable {
         address onBehalf = address(this);
         assembly ("memory-safe") {
             tstore(USER_LOCATION, caller())
             tstore(ASYNC_FILLER_LOCATION, onBehalf)
+            tstore(MAX_PRICE_LOCATION, maxPrice)
         }
         // For native output, forward msg.value to the hook here — the hook will
         // settle it inside fill() during the unlock. Doing this before unlock
         // (rather than from unlockCallback) keeps the payable-only msg.value
         // read out of the non-payable callback.
         Currency output = order.zeroForOne ? order.key.currency1 : order.key.currency0;
-        if (output.isAddressZero() && msg.value > 0) {
+        if (output.isAddressZero()) {
+            require(msg.value == order.amountOutMin, "msg.value != order.amountOutMin");
             (bool ok,) = address(HOOK).call{value: msg.value}("");
             require(ok, "Native output transfer to hook failed");
+        } else {
+            require(msg.value == 0, "msg.value forbidden for ERC20 output");
         }
         POOLMANAGER.unlock(abi.encode(SwapCallback({action: ActionType.FillOrder, order: order})));
     }
@@ -151,6 +173,11 @@ contract Router {
                 )
             );
             (, uint256 livePrice) = HOOK.asyncOrderInfo(orderData.order.key.toId(), id);
+            uint256 maxPrice;
+            assembly ("memory-safe") {
+                maxPrice := tload(MAX_PRICE_LOCATION)
+            }
+            require(livePrice <= maxPrice, "Price exceeds maxPrice");
             // For ERC20 output, pull `livePrice` from the filler into the hook now (filler
             // must have approved this router for that amount). For native output the ETH
             // was already forwarded in fillOrder() above.

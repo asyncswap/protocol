@@ -67,6 +67,8 @@ contract NativeAsyncSwapTest is Test {
         vm.deal(bob, 100 ether);
         erc20.mint(alice, 100 ether);
         erc20.mint(bob, 100 ether);
+        vm.prank(alice);
+        hook.setExecutor(poolId, address(router), true);
     }
 
     function _orderId(address maker, bool zeroForOne, uint64 nonce) internal view returns (bytes32) {
@@ -134,7 +136,7 @@ contract NativeAsyncSwapTest is Test {
         // Bob fills: ERC20 output side, so he approves the Router to pull TST.
         vm.startPrank(bob);
         erc20.approve(address(router), 0.95 ether);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Bob: -0.95 TST, +1 ETH. Alice: +0.95 TST, -1 ETH (already paid).
@@ -188,7 +190,7 @@ contract NativeAsyncSwapTest is Test {
         // Bob fills with native ETH output side — pays 0.9 ETH, receives 1 TST.
         // Router.fillOrder must accept msg.value here.
         vm.startPrank(bob);
-        router.fillOrder{value: 0.9 ether}(order, "");
+        router.fillOrder{value: 0.9 ether}(order, type(uint256).max, "");
         vm.stopPrank();
 
         assertEq(bobEthBefore - bob.balance, 0.9 ether, "filler paid ETH");

@@ -98,5 +98,9 @@ contract SetupHook is Test {
     function topUp(address user, uint256 amount) public ownerAction {
         token0.transfer(user, amount);
         token1.transfer(user, amount);
+        vm.stopPrank();
+        vm.prank(user);
+        hook.setExecutor(poolId, address(router), true);
+        vm.startPrank(owner);
     }
 }

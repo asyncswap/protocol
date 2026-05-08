@@ -92,7 +92,7 @@ contract AsyncSwapTest is SetupHook {
         // Bob fills — must pay amountOutMin of token1 (the maker's output side).
         vm.startPrank(bob);
         token1.approve(address(router), amountOutMin);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Order is gone.
@@ -113,9 +113,10 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 1 ether, 0);
         vm.startPrank(bob);
         token1.approve(address(router), 1 ether);
-        // Bob isn't on alice's executor list and order doesn't exist — executor check fires first.
-        vm.expectRevert(AsyncFiller.NotAuthorizedExecutor.selector);
-        router.fillOrder(order, "");
+        // Router is alice's executor (topUp grants it), but the order itself
+        // was never created — fall through to OrderNotFound.
+        vm.expectRevert(AsyncFiller.OrderNotFound.selector);
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
     }
 
@@ -219,7 +220,7 @@ contract AsyncSwapTest is SetupHook {
 
         vm.startPrank(bob);
         token0.approve(address(router), amountOutMin);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Maker received real currency0 (the maker's chosen output); filler paid currency0 and
@@ -304,7 +305,7 @@ contract AsyncSwapTest is SetupHook {
         uint256 aliceToken1Before = token1.balanceOf(alice);
         vm.startPrank(bob);
         token1.approve(address(router), 1.1 ether);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Filler paid the *updated* 1.1 ether, not the original 0.8 ether.
@@ -333,7 +334,7 @@ contract AsyncSwapTest is SetupHook {
         vm.startPrank(bob);
         token1.approve(address(router), 0.9 ether);
         vm.expectRevert(AsyncFiller.OrderNotFound.selector);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
     }
 
@@ -353,7 +354,7 @@ contract AsyncSwapTest is SetupHook {
 
         vm.startPrank(bob);
         token1.approve(address(router), 0.9 ether);
-        router.fillOrder(order, "");
+        router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         vm.prank(alice);
