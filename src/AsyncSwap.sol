@@ -15,7 +15,7 @@ import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
 import {BaseHook} from "src/BaseHook.sol";
 
 /// @title AsyncSwap
-/// @author Async Labs
+/// @author @msakiart
 /// @notice Uniswap v4 hook that converts an exact-input swap into an open async order: the maker
 ///         deposits their input via `_beforeSwap`, and a filler later settles by paying the maker's
 ///         limit-priced output. v1 is full-fill only.
