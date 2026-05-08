@@ -7,8 +7,6 @@ import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/Test.sol";
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 

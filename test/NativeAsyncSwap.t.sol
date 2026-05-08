@@ -2,7 +2,6 @@
 pragma solidity ^0.8.26;
 
 import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
-import {AsyncFiller} from "@async-swap/libraries/AsyncFiller.sol";
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {Router} from "@async-swap/Router.sol";
 import {MockERC20} from "./utils/MockERC20.sol";
