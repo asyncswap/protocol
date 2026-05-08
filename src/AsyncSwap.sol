@@ -151,16 +151,6 @@ contract AsyncSwap is BaseHook {
         asyncOrders[order.key.toId()].fill(order, id, address(this), msg.sender, filler);
     }
 
-    /// @notice Batch-fill. `data` = abi.encode(filler). Same authorization rules as executeOrder.
-    function executeOrders(AsyncOrder[] calldata orders, bytes calldata data) external {
-        address filler = abi.decode(data, (address));
-        for (uint256 i = 0; i < orders.length; i++) {
-            AsyncOrder calldata order = orders[i];
-            bytes32 id = order.orderId();
-            asyncOrders[order.key.toId()].fill(order, id, address(this), msg.sender, filler);
-        }
-    }
-
     /// @notice Maker updates the limit price of an unfilled order. Direct call from the maker —
     ///         pure state mutation, no PM interaction, so no unlock or router needed.
     function updatePrice(AsyncOrder calldata order, uint256 newAmountOutMin) external {
