@@ -66,6 +66,15 @@ contract TradeScript is FFIHelper {
             console.log("Pool initialized at sqrtPriceX96:", uint256(initSqrtPrice));
         }
 
+        // The hook rejects orders whose executor isn't pre-authorized by the maker
+        // (NotAuthorizedExecutor). Grant the router on first use.
+        if (!hook.isExecutor(key.toId(), OWNER, address(router))) {
+            vm.startBroadcast(OWNER);
+            hook.setExecutor(key.toId(), address(router), true);
+            vm.stopBroadcast();
+            console.log("Authorized router as executor for OWNER");
+        }
+
         uint64 nonce = uint64(block.timestamp);
 
         AsyncOrder memory order = AsyncOrder({
