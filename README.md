@@ -24,8 +24,8 @@ Built around three contracts:
 
 | Contract     | Address                                                                                                                  | Verified                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| AsyncSwap    | [`0x91db9941a44c19a5409345C5f2f8A2C1f81ba888`](https://uniscan.xyz/address/0x91db9941a44c19a5409345c5f2f8a2c1f81ba888)    | [Uniscan](https://uniscan.xyz/address/0x91db9941a44c19a5409345c5f2f8a2c1f81ba888#code) · Sourcify   |
-| Router       | [`0x2A144DAb2EBcD4adfA239Ef86bBBa148CbBDfd37`](https://uniscan.xyz/address/0x2a144dab2ebcd4adfa239ef86bbba148cbbdfd37)    | [Uniscan](https://uniscan.xyz/address/0x2a144dab2ebcd4adfa239ef86bbba148cbbdfd37#code) · Sourcify   |
+| AsyncSwap    | [`0x917b2e7C352af82c35C7a4477d7D055C54E76888`](https://uniscan.xyz/address/0x917b2e7c352af82c35c7a4477d7d055c54e76888)    | [Uniscan](https://uniscan.xyz/address/0x917b2e7c352af82c35c7a4477d7d055c54e76888#code) · Sourcify   |
+| Router       | [`0x88A76b0991016754425093C8fB440744c5574b75`](https://uniscan.xyz/address/0x88a76b0991016754425093c8fb440744c5574b75)    | [Uniscan](https://uniscan.xyz/address/0x88a76b0991016754425093c8fb440744c5574b75#code) · Sourcify   |
 | PoolManager  | [`0x1F98400000000000000000000000000000000004`](https://uniscan.xyz/address/0x1f98400000000000000000000000000000000004)    | (canonical Uniswap v4)                                                                              |
 
 The hook address has the `0x91…` prefix to make it visually identifiable; CREATE2
