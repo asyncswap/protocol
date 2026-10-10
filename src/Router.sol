@@ -123,9 +123,9 @@ contract Router is EIP712 {
 
     /// @notice Filler completes an open order. Caller must hold sufficient `amountOutMin` of the
     ///         maker's output currency. For ERC20 output, the caller must approve the router for
-    ///         that amount; for native output (currency0 = address(0) on a zeroForOne = true
-    ///         order, or currency1 = address(0) on a zeroForOne = false order), the caller
-    ///         forwards ETH via `msg.value`.
+    ///         that amount. For native output, `msg.value` must equal the live stored price;
+    ///         a stale or excessive deposit reverts rather than stranding the difference.
+    ///         Native output is currency1 for zeroForOne, otherwise currency0.
     ///
     ///         `maxPrice` caps the live price the router will pay for the maker's output —
     ///         it protects fillers from a maker who front-runs them with `updatePrice` to
@@ -143,7 +143,10 @@ contract Router is EIP712 {
         // read out of the non-payable callback.
         Currency output = order.zeroForOne ? order.key.currency1 : order.key.currency0;
         if (output.isAddressZero()) {
-            require(msg.value == order.amountOutMin, "msg.value != order.amountOutMin");
+            // The caller's struct price may be stale after a maker reprices. Match the
+            // amount actually settled, so every forwarded wei is paid to the maker.
+            (, uint256 livePrice) = HOOK.asyncOrderInfo(order.key.toId(), _orderId(order));
+            require(msg.value == livePrice, "msg.value != livePrice");
             (bool ok,) = address(HOOK).call{value: msg.value}("");
             require(ok, "Native output transfer to hook failed");
         } else {

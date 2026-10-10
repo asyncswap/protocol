@@ -15,26 +15,8 @@ import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {PoolId} from "v4-core/types/PoolId.sol";
 import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
 
-/// @notice H05: Native-output fill overpayment is permanently stranded in the hook.
-///
-/// Root cause:
-///   - Router.fillOrder requires `msg.value == order.amountOutMin`, where `order.amountOutMin`
-///     is the CALLER-SUPPLIED struct field (not part of the orderId, and not validated against
-///     the live stored price).
-///   - The full msg.value is forwarded to the hook via receive() and credited to the transient
-///     PENDING ledger.
-///   - Settlement (executeOrder -> AsyncFiller.fill) uses the LIVE price read from storage.
-///     Only `livePrice` worth of ETH is settled to the PoolManager and paid to the maker; the
-///     PENDING ledger is decremented only by `livePrice`.
-///   - The positive difference `msg.value - livePrice` stays in the hook's raw ETH balance,
-///     and there is NO withdraw / sweep / recover function anywhere in src/.
-///
-/// Contrast: the ERC20-output branch (Router.sol:191) pulls EXACTLY `livePrice` via
-/// transferFrom, so ERC20 fillers can never overpay.
-///
-/// Native pools always have currency0 = address(0) (ETH sorts first). Native OUTPUT therefore
-/// requires zeroForOne = false: maker sells currency1 (TST) and is paid currency0 (ETH); the
-/// filler forwards ETH via msg.value.
+/// @notice H05 regression: native fills must pay the live price exactly. Stale or
+/// inflated deposits revert atomically, so the filler cannot strand an overpayment.
 contract H05_NativeOverpayStrandedTest is Test {
     using PoolIdLibrary for PoolKey;
 
@@ -124,195 +106,105 @@ contract H05_NativeOverpayStrandedTest is Test {
         order.salt = _expectedSalt(alice, amountIn, amountOutMin);
     }
 
-    /* ------------------------------------------------------------------ *
-     *  SCENARIO (b): maker front-runs with updatePrice LOWER              *
-     * ------------------------------------------------------------------ */
+    function _assertRejectedFill(AsyncOrder memory order, uint256 value) internal {
+        uint256 fillerBefore = bob.balance;
+        uint256 makerBefore = alice.balance;
+        uint256 hookBefore = address(hook).balance;
+        uint256 routerBefore = address(router).balance;
+        bytes32 id = _orderIdFor(alice, false, order.salt);
+        (uint256 inputBefore, uint256 priceBefore) = hook.asyncOrderInfo(poolId, id);
+        vm.prank(bob);
+        vm.expectRevert("msg.value != livePrice");
+        router.fillOrder{value: value}(order, type(uint256).max, "");
+        assertEq(bob.balance, fillerBefore, "filler keeps deposit");
+        assertEq(alice.balance, makerBefore, "maker receives nothing");
+        assertEq(address(hook).balance, hookBefore, "hook balance unchanged");
+        assertEq(address(router).balance, routerBefore, "router balance unchanged");
+        (uint256 inputAfter, uint256 priceAfter) = hook.asyncOrderInfo(poolId, id);
+        assertEq(inputAfter, inputBefore, "order remains open");
+        assertEq(priceAfter, priceBefore, "price unchanged");
+    }
 
-    /// Maker creates an order asking 1 ETH for 1 TST, then front-runs the pending fill by
-    /// calling updatePrice to LOWER the live price to 0.6 ETH. Bob's broadcast still carries
-    /// the stale (higher) struct amountOutMin = 1 ETH, so his msg.value = 1 ETH. Settlement
-    /// only pays the maker the live 0.6 ETH; the 0.4 ETH excess is stranded in the hook.
-    function test_H05_frontrunUpdatePrice_excessStranded() public {
-        uint256 amountIn = 1 ether;
-        uint256 signedPrice = 1 ether; // price the filler saw / broadcast against
-        uint256 livePrice = 0.6 ether; // maker's front-run lowered price
-
-        AsyncOrder memory order = _createNativeOutputOrder(amountIn, signedPrice);
-
-        // Maker front-runs: lower the live stored price to 0.6 ETH.
+    function test_H05_loweredPrice_rejectsStaleDeposit() public {
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 1 ether);
         vm.prank(alice);
-        hook.updatePrice(order, livePrice);
-
-        (, uint256 storedOutMin) = hook.asyncOrderInfo(poolId, _orderIdFor(alice, false, order.salt));
-        assertEq(storedOutMin, livePrice, "live price lowered");
-
-        uint256 hookBalBefore = address(hook).balance;
-        uint256 bobEthBefore = bob.balance;
-        uint256 aliceEthBefore = alice.balance;
-
-        emit log_named_uint("hook ETH balance before fill", hookBalBefore);
-        emit log_named_uint("filler-supplied price (msg.value)", signedPrice);
-        emit log_named_uint("live stored price (settled to maker)", livePrice);
-
-        // Bob broadcasts against the stale higher price; maxPrice disabled so the maker's
-        // downward move does NOT trip the maxPrice guard (that guard only blocks UPWARD moves).
-        vm.prank(bob);
-        router.fillOrder{value: signedPrice}(order, type(uint256).max, "");
-
-        uint256 hookBalAfter = address(hook).balance;
-        uint256 excess = signedPrice - livePrice;
-
-        emit log_named_uint("hook ETH balance after fill", hookBalAfter);
-        emit log_named_uint("stranded excess in hook", hookBalAfter - hookBalBefore);
-        emit log_named_uint("filler ETH spent", bobEthBefore - bob.balance);
-        emit log_named_uint("maker ETH received", alice.balance - aliceEthBefore);
-
-        // Filler paid the full stale price.
-        assertEq(bobEthBefore - bob.balance, signedPrice, "filler paid full msg.value");
-        // Maker received only the live price.
-        assertEq(alice.balance - aliceEthBefore, livePrice, "maker received only live price");
-        // The excess is now stranded in the hook's raw balance.
-        assertEq(hookBalAfter - hookBalBefore, excess, "excess stranded in hook");
-        assertGt(hookBalAfter, 0, "hook retains stranded ETH");
-
-        // No recovery path exists: neither filler nor maker can pull the excess back.
-        _assertNoRecovery(excess);
+        hook.updatePrice(order, 0.6 ether);
+        _assertRejectedFill(order, 1 ether);
     }
 
-    /* ------------------------------------------------------------------ *
-     *  SCENARIO (a): filler supplies a struct price ABOVE the live price  *
-     * ------------------------------------------------------------------ */
-
-    /// No maker action at all. The order's live price is 0.6 ETH, but the filler broadcasts a
-    /// struct whose amountOutMin = 1 ETH (e.g. a stale snapshot). msg.value is validated against
-    /// the CALLER-SUPPLIED field, not the live price, so the filler overpays and 0.4 ETH strands.
-    function test_H05_staleHigherStructPrice_excessStranded() public {
-        uint256 amountIn = 1 ether;
-        uint256 livePrice = 0.6 ether;
-        uint256 staleHigher = 1 ether;
-
-        // Create the order directly at the live price.
-        AsyncOrder memory order = _createNativeOutputOrder(amountIn, livePrice);
-
-        // Filler uses a struct carrying the stale, higher amountOutMin. The orderId does NOT
-        // depend on amountOutMin, so the fill still targets the same live order.
-        AsyncOrder memory staleOrder = order;
-        staleOrder.amountOutMin = staleHigher;
-
-        uint256 hookBalBefore = address(hook).balance;
-        uint256 bobEthBefore = bob.balance;
-        uint256 aliceEthBefore = alice.balance;
-
-        emit log_named_uint("filler-supplied price (msg.value)", staleHigher);
-        emit log_named_uint("live stored price (settled to maker)", livePrice);
-
-        vm.prank(bob);
-        router.fillOrder{value: staleHigher}(staleOrder, type(uint256).max, "");
-
-        uint256 excess = staleHigher - livePrice;
-        uint256 stranded = address(hook).balance - hookBalBefore;
-
-        emit log_named_uint("stranded excess in hook", stranded);
-        emit log_named_uint("filler ETH spent", bobEthBefore - bob.balance);
-        emit log_named_uint("maker ETH received", alice.balance - aliceEthBefore);
-
-        assertEq(bobEthBefore - bob.balance, staleHigher, "filler paid full msg.value");
-        assertEq(alice.balance - aliceEthBefore, livePrice, "maker received only live price");
-        assertEq(stranded, excess, "excess stranded in hook");
-        // Filler lost >20% of what they paid to the black hole (0.4 / 1.0 = 40%).
-        assertGt(stranded, staleHigher * 20 / 100, "stranded loss exceeds 20% of msg.value");
-
-        _assertNoRecovery(excess);
+    function test_H05_inflatedStructPrice_rejectsOverpayment() public {
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 0.6 ether);
+        order.amountOutMin = 1 ether;
+        _assertRejectedFill(order, 1 ether);
     }
 
-    /* ------------------------------------------------------------------ *
-     *  CONTROL: fair fill, msg.value == live price, nothing stranded      *
-     * ------------------------------------------------------------------ */
+    function test_H05_underpayment_cannotConsumeDonatedEth() public {
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 1 ether);
+        vm.deal(address(hook), 10 ether);
+        _assertRejectedFill(order, 0.6 ether);
+    }
+
+    function testFuzz_H05_overpaymentReverts(uint96 excess) public {
+        vm.assume(excess > 0);
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 0.6 ether);
+        uint256 payment = 0.6 ether + uint256(excess);
+        vm.deal(bob, payment);
+        order.amountOutMin = payment;
+        _assertRejectedFill(order, payment);
+    }
+
+    function test_H05_exactLivePrice_succeedsWithStaleStruct() public {
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 1 ether);
+        vm.prank(alice);
+        hook.updatePrice(order, 0.6 ether);
+        uint256 fillerBefore = bob.balance;
+        uint256 makerBefore = alice.balance;
+        uint256 tokensBefore = erc20.balanceOf(bob);
+        vm.prank(bob);
+        router.fillOrder{value: 0.6 ether}(order, 1 ether, "");
+        assertEq(fillerBefore - bob.balance, 0.6 ether, "filler pays live price");
+        assertEq(alice.balance - makerBefore, 0.6 ether, "maker receives live price");
+        assertEq(erc20.balanceOf(bob) - tokensBefore, 1 ether, "filler receives input");
+        assertEq(address(hook).balance, 0, "no stranded ETH");
+        assertEq(address(router).balance, 0, "no stranded ETH in router");
+        (uint256 remaining,) = hook.asyncOrderInfo(poolId, _orderIdFor(alice, false, order.salt));
+        assertEq(remaining, 0, "order consumed");
+    }
+
+    function test_H05_livePriceAboveMax_revertsAtomically() public {
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 1 ether);
+        uint256 fillerBefore = bob.balance;
+        vm.prank(bob);
+        vm.expectRevert("Price exceeds maxPrice");
+        router.fillOrder{value: 1 ether}(order, 0.6 ether, "");
+        assertEq(bob.balance, fillerBefore);
+        assertEq(address(hook).balance, 0);
+        (uint256 remaining,) = hook.asyncOrderInfo(poolId, _orderIdFor(alice, false, order.salt));
+        assertEq(remaining, 1 ether);
+    }
 
     function test_H05_control_fairFill_noStranding() public {
-        uint256 amountIn = 1 ether;
-        uint256 livePrice = 0.9 ether;
-
-        AsyncOrder memory order = _createNativeOutputOrder(amountIn, livePrice);
-
-        uint256 hookBalBefore = address(hook).balance;
-        uint256 bobEthBefore = bob.balance;
-        uint256 aliceEthBefore = alice.balance;
-
-        emit log_named_uint("filler-supplied price (msg.value)", livePrice);
-        emit log_named_uint("live stored price (settled to maker)", livePrice);
-
-        // Fair filler: msg.value == struct amountOutMin == live price.
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 0.9 ether);
+        uint256 makerBefore = alice.balance;
         vm.prank(bob);
-        router.fillOrder{value: livePrice}(order, type(uint256).max, "");
-
-        uint256 stranded = address(hook).balance - hookBalBefore;
-
-        emit log_named_uint("hook ETH balance after fair fill", address(hook).balance);
-        emit log_named_uint("stranded excess in hook", stranded);
-        emit log_named_uint("filler ETH spent", bobEthBefore - bob.balance);
-        emit log_named_uint("maker ETH received", alice.balance - aliceEthBefore);
-
-        assertEq(stranded, 0, "no ETH stranded on a fair fill");
-        assertEq(bobEthBefore - bob.balance, livePrice, "filler paid exactly live price");
-        assertEq(alice.balance - aliceEthBefore, livePrice, "maker received exactly live price");
+        router.fillOrder{value: 0.9 ether}(order, 0.9 ether, "");
+        assertEq(alice.balance - makerBefore, 0.9 ether);
+        assertEq(address(hook).balance, 0);
+        assertEq(address(router).balance, 0);
     }
 
-    /* ------------------------------------------------------------------ *
-     *  FIX: owner sweep recovers the stranded ETH as protocol fees        *
-     * ------------------------------------------------------------------ */
-
-    /// After a native-output overpayment strands ETH in the hook, the protocol owner can
-    /// recover it via sweep(). msg.sender at deploy time (this test contract) is the owner.
-    function test_H05_fix_ownerSweepsStrandedEth() public {
-        uint256 amountIn = 1 ether;
-        uint256 livePrice = 0.6 ether;
-        uint256 staleHigher = 1 ether;
-
-        AsyncOrder memory order = _createNativeOutputOrder(amountIn, livePrice);
-        AsyncOrder memory staleOrder = order;
-        staleOrder.amountOutMin = staleHigher;
-
-        vm.prank(bob);
-        router.fillOrder{value: staleHigher}(staleOrder, type(uint256).max, "");
-
-        uint256 stranded = address(hook).balance;
-        assertEq(stranded, staleHigher - livePrice, "0.4 ETH stranded before sweep");
-
-        // Non-owner cannot sweep.
+    function test_ownerSweep_recoversDonationsWithoutTouchingOpenOrder() public {
+        AsyncOrder memory order = _createNativeOutputOrder(1 ether, 0.9 ether);
+        vm.deal(address(hook), 0.4 ether);
+        address collector = makeAddr("collector");
         vm.prank(bob);
         vm.expectRevert(AsyncSwap.NotOwner.selector);
-        hook.sweep(currency0, bob);
-
-        // Owner (this test contract, the deployer) sweeps the stranded ETH to a collector.
-        address collector = makeAddr("collector");
-        assertEq(hook.owner(), address(this), "test contract is owner");
         hook.sweep(currency0, collector);
-
-        assertEq(collector.balance, stranded, "collector received the swept ETH");
-        assertEq(address(hook).balance, 0, "hook balance fully swept");
-    }
-
-    /* ------------------------------------------------------------------ *
-     *  helper: prove the stranded ETH cannot be recovered                 *
-     * ------------------------------------------------------------------ */
-
-    /// @dev There is no withdraw/sweep/recover selector in src/. We assert the hook keeps the
-    ///      ETH across follow-up interactions and that a follow-up call carrying no value
-    ///      cannot pull it out.
-    function _assertNoRecovery(uint256 excess) internal {
-        uint256 held = address(hook).balance;
-        assertGe(held, excess, "hook still holds the stranded ETH");
-
-        // Maker attempts a bare call to the hook to reclaim — no such function, ETH stays.
-        vm.prank(alice);
-        (bool okA,) = address(hook).call(abi.encodeWithSignature("withdraw()"));
-        okA; // ignore
-        // Filler attempts the same.
+        vm.prank(hook.owner());
+        hook.sweep(currency0, collector);
+        assertEq(collector.balance, 0.4 ether);
+        assertEq(address(hook).balance, 0);
         vm.prank(bob);
-        (bool okB,) = address(hook).call(abi.encodeWithSignature("sweep()"));
-        okB; // ignore
-
-        assertEq(address(hook).balance, held, "stranded ETH unchanged: no recovery path");
+        router.fillOrder{value: 0.9 ether}(order, 0.9 ether, "");
     }
 }
