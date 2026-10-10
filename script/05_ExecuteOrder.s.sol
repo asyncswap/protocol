@@ -28,6 +28,7 @@ contract ExecuteAsyncOrderScript is FFIHelper {
         router.fillOrder(order, order.amountOutMin, "");
         vm.stopBroadcast();
 
-        console.log("Async order filled. nonce:", uint256(order.nonce));
+        console.log("Async order filled. salt:");
+        console.logBytes32(order.salt);
     }
 }

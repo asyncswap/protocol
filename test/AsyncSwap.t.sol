@@ -20,15 +20,12 @@ contract AsyncSwapTest is SetupHook {
         topUp(bob, 100 ether);
     }
 
-    function _orderId(address maker, bool zeroForOne, uint64 nonce) internal view returns (bytes32) {
-        return keccak256(abi.encode(poolId, maker, zeroForOne, nonce));
-    }
-
-    function _orderFromMaker(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
+    function _orderFromMaker(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin)
         internal
         view
         returns (AsyncOrder memory)
     {
+        // Submitters pass `salt = bytes32(0)`; the hook assigns the real salt in `_createOrder`.
         return AsyncOrder({
             key: key,
             owner: maker,
@@ -36,8 +33,15 @@ contract AsyncSwapTest is SetupHook {
             amountIn: amountIn,
             amountOutMin: amountOutMin,
             sqrtPrice: 2 ** 96,
-            nonce: nonce
+            salt: bytes32(0)
         });
+    }
+
+    /// @dev After router.swap, patch `order.salt` to the hook-assigned salt so cancel/fill/updatePrice
+    ///      compute the same orderId the hook stored under.
+    function _withAssignedSalt(AsyncOrder memory order) internal view returns (AsyncOrder memory) {
+        order.salt = _expectedSalt(order.owner, order.amountIn, order.amountOutMin);
+        return order;
     }
 
     /* --------------------------------- create --------------------------------- */
@@ -46,19 +50,17 @@ contract AsyncSwapTest is SetupHook {
         uint256 amountIn = 1 ether;
         uint256 amountOutMin = 0.95 ether;
 
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, amountOutMin, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, amountOutMin);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
             order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin, nonce: 0})
-            )
+            abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
         );
         vm.stopPrank();
 
-        bytes32 id = _orderId(alice, true, 0);
+        bytes32 id = _orderIdFor(alice, true, _expectedSalt(alice, amountIn, amountOutMin));
         (uint256 storedIn, uint256 storedOutMin) = hook.asyncOrderInfo(poolId, id);
         assertEq(storedIn, amountIn, "amountIn stored");
         assertEq(storedOutMin, amountOutMin, "amountOutMin stored");
@@ -71,18 +73,19 @@ contract AsyncSwapTest is SetupHook {
         uint256 amountIn = 1 ether;
         uint256 amountOutMin = 0.95 ether;
 
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, amountOutMin, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, amountOutMin);
 
         // Maker submits.
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
             order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin, nonce: 0})
-            )
+            abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
         );
         vm.stopPrank();
+
+        // Patch salt for the fill leg.
+        order = _withAssignedSalt(order);
 
         uint256 aliceToken0Before = token0.balanceOf(alice);
         uint256 aliceToken1Before = token1.balanceOf(alice);
@@ -96,7 +99,7 @@ contract AsyncSwapTest is SetupHook {
         vm.stopPrank();
 
         // Order is gone.
-        bytes32 id = _orderId(alice, true, 0);
+        bytes32 id = _orderIdFor(alice, true, order.salt);
         (uint256 leftIn,) = hook.asyncOrderInfo(poolId, id);
         assertEq(leftIn, 0, "order cleared after full fill");
 
@@ -110,7 +113,7 @@ contract AsyncSwapTest is SetupHook {
     }
 
     function test_fill_revertsWhenOrderMissing() public {
-        AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 1 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 1 ether);
         vm.startPrank(bob);
         token1.approve(address(router), 1 ether);
         // Router is alice's executor (topUp grants it), but the order itself
@@ -124,38 +127,36 @@ contract AsyncSwapTest is SetupHook {
 
     function test_updatePrice_makerCanRaisePrice() public {
         uint256 amountIn = 1 ether;
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
+        // Patch salt before updatePrice.
+        order = _withAssignedSalt(order);
         // Now raise the limit price — filler must pay more.
         hook.updatePrice(order, 1.2 ether);
         vm.stopPrank();
 
-        bytes32 id = _orderId(alice, true, 0);
+        bytes32 id = _orderIdFor(alice, true, order.salt);
         (, uint256 outMin) = hook.asyncOrderInfo(poolId, id);
         assertEq(outMin, 1.2 ether);
     }
 
     function test_updatePrice_revertsForNonOwner() public {
         uint256 amountIn = 1 ether;
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
         vm.stopPrank();
+
+        order = _withAssignedSalt(order);
 
         vm.prank(bob);
         vm.expectRevert(AsyncFiller.NotOrderOwner.selector);
@@ -166,22 +167,20 @@ contract AsyncSwapTest is SetupHook {
 
     function test_cancel_makerReclaimsInput() public {
         uint256 amountIn = 1 ether;
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         uint256 aliceToken0Before = token0.balanceOf(alice);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
+        order = _withAssignedSalt(order);
         router.cancelOrder(order);
         vm.stopPrank();
 
-        bytes32 id = _orderId(alice, true, 0);
+        bytes32 id = _orderIdFor(alice, true, order.salt);
         (uint256 leftIn,) = hook.asyncOrderInfo(poolId, id);
         assertEq(leftIn, 0, "order deleted");
         // Maker reclaimed REAL input tokens — net zero on token0 balance, no 6909 left over.
@@ -190,7 +189,7 @@ contract AsyncSwapTest is SetupHook {
     }
 
     function test_cancel_revertsForNonOwner() public {
-        AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 0.9 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 0.9 ether);
         vm.prank(bob);
         vm.expectRevert("Only owner can cancel");
         router.cancelOrder(order);
@@ -202,17 +201,17 @@ contract AsyncSwapTest is SetupHook {
         uint256 amountIn = 2 ether;
         uint256 amountOutMin = 1.8 ether;
 
-        AsyncOrder memory order = _orderFromMaker(alice, false, amountIn, amountOutMin, 7);
+        AsyncOrder memory order = _orderFromMaker(alice, false, amountIn, amountOutMin);
 
         vm.startPrank(alice);
         token1.approve(address(router), amountIn);
         router.swap(
             order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin, nonce: 7})
-            )
+            abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
         );
         vm.stopPrank();
+
+        order = _withAssignedSalt(order);
 
         uint256 bobToken0Before = token0.balanceOf(bob);
         uint256 bobToken1Before = token1.balanceOf(bob);
@@ -232,71 +231,71 @@ contract AsyncSwapTest is SetupHook {
 
     /* ------------------------- multiple orders per maker ------------------------- */
 
-    function test_swap_twoOrdersSameMaker_distinctNonces() public {
-        AsyncOrder memory o1 = _orderFromMaker(alice, true, 1 ether, 0.9 ether, 1);
-        AsyncOrder memory o2 = _orderFromMaker(alice, true, 0.5 ether, 0.45 ether, 2);
+    function test_swap_twoOrdersSameMaker_distinctSalts() public {
+        // Distinct (amountIn, amountOutMin) tuples => distinct salts => distinct orderIds.
+        AsyncOrder memory o1 = _orderFromMaker(alice, true, 1 ether, 0.9 ether);
+        AsyncOrder memory o2 = _orderFromMaker(alice, true, 0.5 ether, 0.45 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), 1 ether);
         router.swap(
-            o1,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 1})
-            )
+            o1, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
         token0.approve(address(router), 0.5 ether);
         router.swap(
-            o2,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.45 ether, nonce: 2})
-            )
+            o2, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.45 ether}))
         );
         vm.stopPrank();
 
-        (uint256 in1,) = hook.asyncOrderInfo(poolId, _orderId(alice, true, 1));
-        (uint256 in2,) = hook.asyncOrderInfo(poolId, _orderId(alice, true, 2));
+        bytes32 id1 = _orderIdFor(alice, true, _expectedSalt(alice, 1 ether, 0.9 ether));
+        bytes32 id2 = _orderIdFor(alice, true, _expectedSalt(alice, 0.5 ether, 0.45 ether));
+        (uint256 in1,) = hook.asyncOrderInfo(poolId, id1);
+        (uint256 in2,) = hook.asyncOrderInfo(poolId, id2);
         assertEq(in1, 1 ether, "order 1 stored");
         assertEq(in2, 0.5 ether, "order 2 stored");
     }
 
-    function test_swap_duplicateNonceReverts() public {
-        AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 0.9 ether, 5);
+    /// @notice With contract-assigned salts, duplicate (user, amountIn, amountOutMin) tuples in the
+    ///         same block trigger the in-contract salt-walk: the second order lands on a re-hashed
+    ///         salt rather than colliding. Both submissions must succeed and produce distinct ids.
+    function test_swap_duplicateParamsTriggerSaltWalk() public {
+        AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 0.9 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), 1 ether);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 5})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
-        // Reuse nonce 5 on the same direction → orderId collision. PoolManager wraps hook reverts,
-        // so we match any revert here rather than hard-code the wrapper selector.
         token0.approve(address(router), 1 ether);
-        vm.expectRevert();
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 5})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
         vm.stopPrank();
+
+        // First salt = base prediction; second salt = keccak256(firstSalt) per the walk.
+        bytes32 firstSalt = _expectedSalt(alice, 1 ether, 0.9 ether);
+        bytes32 secondSalt = keccak256(abi.encode(firstSalt));
+        bytes32 id1 = _orderIdFor(alice, true, firstSalt);
+        bytes32 id2 = _orderIdFor(alice, true, secondSalt);
+        assertTrue(id1 != id2, "salt-walk produced distinct ids");
+        (uint256 in1,) = hook.asyncOrderInfo(poolId, id1);
+        (uint256 in2,) = hook.asyncOrderInfo(poolId, id2);
+        assertEq(in1, 1 ether, "first order stored");
+        assertEq(in2, 1 ether, "second order stored after salt walk");
     }
 
     /* ----------------------- updated price affects fill ----------------------- */
 
     function test_fill_usesUpdatedPrice() public {
         uint256 amountIn = 1 ether;
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.8 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.8 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.8 ether, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.8 ether}))
         );
+        order = _withAssignedSalt(order);
         // Maker raises price after submission.
         hook.updatePrice(order, 1.1 ether);
         vm.stopPrank();
@@ -317,16 +316,14 @@ contract AsyncSwapTest is SetupHook {
 
     function test_fill_revertsAfterCancel() public {
         uint256 amountIn = 1 ether;
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
+        order = _withAssignedSalt(order);
         router.cancelOrder(order);
         vm.stopPrank();
 
@@ -340,17 +337,16 @@ contract AsyncSwapTest is SetupHook {
 
     function test_cancel_revertsAfterFill() public {
         uint256 amountIn = 1 ether;
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
         vm.stopPrank();
+
+        order = _withAssignedSalt(order);
 
         vm.startPrank(bob);
         token1.approve(address(router), 0.9 ether);

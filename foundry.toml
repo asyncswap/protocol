@@ -1,12 +1,13 @@
 [profile.default]
 src = "src"
 out = "out"
-libs = ["lib", "dependencies"]
+libs = ["dependencies"]
 ffi = true
 fs_permissions = [
   { access = "read", path = "./broadcast/" },
   { access = "read-write", path = "./deployments/" },
 ]
+solc_version = "0.8.26"
 
 [dependencies]
 forge-std = "1.16.0"

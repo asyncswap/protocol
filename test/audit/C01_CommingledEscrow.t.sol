@@ -58,11 +58,12 @@ contract C01_CommingledEscrowTest is Test {
         hook.setExecutor(poolId, address(router), true);
     }
 
-    function _order(address ownerAddr, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
+    function _order(address ownerAddr, bool zeroForOne, uint256 amountIn, uint256 amountOutMin)
         internal
         view
         returns (AsyncOrder memory)
     {
+        // Salt is contract-assigned in `_createOrder`; submitters pass bytes32(0).
         return AsyncOrder({
             key: key,
             owner: ownerAddr,
@@ -70,7 +71,7 @@ contract C01_CommingledEscrowTest is Test {
             amountIn: amountIn,
             amountOutMin: amountOutMin,
             sqrtPrice: 2 ** 96,
-            nonce: nonce
+            salt: bytes32(0)
         });
     }
 
@@ -78,18 +79,18 @@ contract C01_CommingledEscrowTest is Test {
         uint256 STRANDED = 10 ether;
         vm.deal(address(hook), STRANDED);
 
-        AsyncOrder memory order =
-            _order({ownerAddr: attacker, zeroForOne: false, amountIn: 1, amountOutMin: STRANDED, nonce: 0});
+        AsyncOrder memory order = _order({ownerAddr: attacker, zeroForOne: false, amountIn: 1, amountOutMin: STRANDED});
 
         vm.startPrank(attacker);
         erc20.approve(address(router), 1);
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: attacker, executor: address(router), amountOutMin: STRANDED, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: attacker, executor: address(router), amountOutMin: STRANDED}))
         );
         vm.stopPrank();
+
+        // Patch salt so the fillOrder path resolves the same orderId the hook stored under.
+        order.salt =
+            keccak256(abi.encode(block.timestamp, block.number, address(manager), attacker, uint256(1), STRANDED));
 
         vm.prank(attacker);
         vm.expectRevert();

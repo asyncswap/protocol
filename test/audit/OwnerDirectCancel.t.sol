@@ -35,9 +35,7 @@ contract SmartMaker is IUnlockCallback {
         router.swap(
             order,
             abi.encode(
-                AsyncSwap.UserParams({
-                    user: address(this), executor: address(router), amountOutMin: order.amountOutMin, nonce: order.nonce
-                })
+                AsyncSwap.UserParams({user: address(this), executor: address(router), amountOutMin: order.amountOutMin})
             )
         );
     }
@@ -71,12 +69,15 @@ contract OwnerDirectCancelTest is SetupHook {
             amountIn: 1 ether,
             amountOutMin: 0.9 ether,
             sqrtPrice: 2 ** 96,
-            nonce: 0
+            salt: bytes32(0)
         });
 
         uint256 makerToken0Before = token0.balanceOf(address(maker));
         maker.submitOrder(order, token0);
         assertEq(token0.balanceOf(address(maker)), makerToken0Before - 1 ether, "maker locked input");
+
+        // Patch salt so the direct-cancel resolves the same orderId the hook stored under.
+        order.salt = _expectedSalt(address(maker), 1 ether, 0.9 ether);
 
         // Maker revokes Router as executor — open order remains.
         maker.authorizeRouter(poolId, false);
@@ -87,8 +88,7 @@ contract OwnerDirectCancelTest is SetupHook {
         // and the cancel succeeds without re-granting.
         maker.cancelDirectly(order);
         assertEq(token0.balanceOf(address(maker)), makerToken0Before, "input refunded");
-        (uint256 amountIn,) =
-            hook.asyncOrderInfo(poolId, keccak256(abi.encode(poolId, address(maker), true, uint64(0))));
+        (uint256 amountIn,) = hook.asyncOrderInfo(poolId, _orderIdFor(address(maker), true, order.salt));
         assertEq(amountIn, 0, "order deleted");
     }
 }

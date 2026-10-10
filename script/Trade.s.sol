@@ -75,8 +75,6 @@ contract TradeScript is FFIHelper {
             console.log("Authorized router as executor for OWNER");
         }
 
-        uint64 nonce = uint64(block.timestamp);
-
         AsyncOrder memory order = AsyncOrder({
             key: key,
             owner: OWNER,
@@ -84,11 +82,11 @@ contract TradeScript is FFIHelper {
             amountIn: amountIn,
             amountOutMin: amountOutMin,
             sqrtPrice: 2 ** 96,
-            nonce: nonce
+            // Hook auto-assigns the real salt on create; placeholder here.
+            salt: bytes32(0)
         });
-        bytes memory userData = abi.encode(
-            AsyncSwap.UserParams({user: OWNER, executor: address(router), amountOutMin: amountOutMin, nonce: nonce})
-        );
+        bytes memory userData =
+            abi.encode(AsyncSwap.UserParams({user: OWNER, executor: address(router), amountOutMin: amountOutMin}));
 
         console.log("amountIn:    ", amountIn);
         console.log("amountOutMin:", amountOutMin);
@@ -103,7 +101,7 @@ contract TradeScript is FFIHelper {
         }
         vm.stopBroadcast();
 
-        console.log("submitted; nonce:", uint256(nonce));
+        console.log("submitted (salt auto-assigned by hook; see AsyncOrderCreated event)");
     }
 
     /// @dev FFIs `script/price.ts` and pulls the two amounts back into Solidity.

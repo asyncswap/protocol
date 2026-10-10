@@ -15,7 +15,7 @@ contract H01_MakerFrontrunTest is SetupHook {
         topUp(bob, 100 ether);
     }
 
-    function _orderFromMaker(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
+    function _orderFromMaker(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin)
         internal
         view
         returns (AsyncOrder memory)
@@ -27,7 +27,7 @@ contract H01_MakerFrontrunTest is SetupHook {
             amountIn: amountIn,
             amountOutMin: amountOutMin,
             sqrtPrice: 2 ** 96,
-            nonce: nonce
+            salt: bytes32(0)
         });
     }
 
@@ -36,17 +36,18 @@ contract H01_MakerFrontrunTest is SetupHook {
         uint256 originalOutMin = 0.8e18;
         uint256 frontrunOutMin = 1.1e18;
 
-        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, originalOutMin, 0);
+        AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, originalOutMin);
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         router.swap(
             order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: originalOutMin, nonce: 0})
-            )
+            abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: originalOutMin}))
         );
         vm.stopPrank();
+
+        // Resolve the hook-assigned salt so subsequent updatePrice/fillOrder hit the right id.
+        order.salt = _expectedSalt(alice, amountIn, originalOutMin);
 
         vm.prank(bob);
         token1.approve(address(router), 2e18);

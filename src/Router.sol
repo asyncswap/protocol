@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {IPoolManager, SwapParams} from "v4-core/interfaces/IPoolManager.sol";
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {SafeCast} from "v4-core/libraries/SafeCast.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
@@ -56,9 +56,14 @@ contract Router {
 
     /// @notice Maker submits a new async order. `userData` must encode `AsyncSwap.UserParams`
     ///         with `executor == address(this)` so the router is authorized to fill later.
-    ///         `userData.amountOutMin` and `userData.nonce` MUST equal `order.amountOutMin`
-    ///         and `order.nonce` — the router enforces this so the limit price the maker
-    ///         signs in `order` is exactly what beforeSwap stores via hookData.
+    ///         `userData.amountOutMin` MUST equal `order.amountOutMin` — the router enforces
+    ///         this so the limit price the maker signs in `order` is exactly what beforeSwap
+    ///         stores via hookData.
+    ///
+    ///         The hook auto-assigns a salt on create and emits it in `AsyncOrderCreated`.
+    ///         Submitters can pass `order.salt = bytes32(0)` on initial submission; the
+    ///         field is only read on cancel / updatePrice / fill paths (where the maker
+    ///         supplies the salt fetched from the indexer or event log).
     ///
     ///         Native input (currency0 = address(0) and zeroForOne = true, OR currency1 =
     ///         address(0) and zeroForOne = false) requires `msg.value == order.amountIn` —
@@ -69,7 +74,6 @@ contract Router {
         AsyncSwap.UserParams memory userParams = abi.decode(userData, (AsyncSwap.UserParams));
         require(userParams.executor == address(this), "Use router as your executor!");
         require(userParams.amountOutMin == order.amountOutMin, "amountOutMin mismatch");
-        require(userParams.nonce == order.nonce, "nonce mismatch");
 
         // msg.value invariant: native input requires exact deposit, ERC20 input forbids overpay.
         // Without this an attacker can sweep ETH stranded from prior overpays in this contract.
@@ -145,15 +149,10 @@ contract Router {
             // Trigger the hook via PM.swap; hook.beforeSwap pulls the maker's input as 6909.
             POOLMANAGER.swap(
                 orderData.order.key,
-                IPoolManager.SwapParams(
-                    orderData.order.zeroForOne, -orderData.order.amountIn.toInt256(), orderData.order.sqrtPrice
-                ),
+                SwapParams(orderData.order.zeroForOne, -orderData.order.amountIn.toInt256(), orderData.order.sqrtPrice),
                 abi.encode(
                     AsyncSwap.UserParams({
-                        user: user,
-                        executor: asyncFiller,
-                        amountOutMin: orderData.order.amountOutMin,
-                        nonce: orderData.order.nonce
+                        user: user, executor: asyncFiller, amountOutMin: orderData.order.amountOutMin
                     })
                 )
             );
@@ -167,11 +166,7 @@ contract Router {
             // Read the LIVE price from hook storage — the caller's `order.amountOutMin` may be
             // stale if the maker called updatePrice after submitting.
             Currency output = orderData.order.zeroForOne ? orderData.order.key.currency1 : orderData.order.key.currency0;
-            bytes32 id = keccak256(
-                abi.encode(
-                    orderData.order.key.toId(), orderData.order.owner, orderData.order.zeroForOne, orderData.order.nonce
-                )
-            );
+            bytes32 id = _orderId(orderData.order);
             (, uint256 livePrice) = HOOK.asyncOrderInfo(orderData.order.key.toId(), id);
             uint256 maxPrice;
             assembly ("memory-safe") {
@@ -190,5 +185,10 @@ contract Router {
         }
 
         return "";
+    }
+
+    /// @dev MUST match AsyncOrderLibrary.orderId exactly: (chainId, poolId, owner, zeroForOne, salt).
+    function _orderId(AsyncOrder memory order) private view returns (bytes32) {
+        return keccak256(abi.encode(block.chainid, order.key.toId(), order.owner, order.zeroForOne, order.salt));
     }
 }

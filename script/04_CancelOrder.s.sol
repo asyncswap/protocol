@@ -25,7 +25,8 @@ contract CancelAsyncOrderScript is FFIHelper {
         router.cancelOrder(order);
         vm.stopBroadcast();
 
-        console.log("Async order cancelled. nonce:", uint256(order.nonce));
+        console.log("Async order cancelled. salt:");
+        console.logBytes32(order.salt);
         console.log("Owner reclaimed amountIn:", order.amountIn);
     }
 }

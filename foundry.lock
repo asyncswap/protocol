@@ -1,4 +1,13 @@
 {
+  "dependencies/forge-std": {
+    "tag": {
+      "name": "v1.16.1",
+      "rev": "620536fa5277db4e3fd46772d5cbc1ea0696fb43"
+    }
+  },
+  "dependencies/v4-core": {
+    "rev": "46c6834698c48bc4a463a86d8420f4eb1d7f3b75"
+  },
   "lib/forge-std": {
     "tag": {
       "name": "v1.16.1",

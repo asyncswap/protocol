@@ -61,7 +61,7 @@ contract H03_StrandedEthTest is Test {
         hook.setExecutor(poolId, address(router), true);
     }
 
-    function _order(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin, uint64 nonce)
+    function _order(address maker, bool zeroForOne, uint256 amountIn, uint256 amountOutMin)
         internal
         view
         returns (AsyncOrder memory)
@@ -73,7 +73,7 @@ contract H03_StrandedEthTest is Test {
             amountIn: amountIn,
             amountOutMin: amountOutMin,
             sqrtPrice: 2 ** 96,
-            nonce: nonce
+            salt: bytes32(0)
         });
     }
 
@@ -81,12 +81,11 @@ contract H03_StrandedEthTest is Test {
         // Victim's overpay path is now itself blocked at the Router (the same
         // fix protects symmetrically), so we assert directly that an attacker
         // attempting a native-input swap with msg.value != amountIn reverts.
-        AsyncOrder memory atkOrder = _order(attacker, true, 1 ether, 1 wei, 7);
+        AsyncOrder memory atkOrder = _order(attacker, true, 1 ether, 1 wei);
         vm.startPrank(attacker);
         vm.expectRevert();
         router.swap{value: 0}(
-            atkOrder,
-            abi.encode(AsyncSwap.UserParams({user: attacker, executor: address(router), amountOutMin: 1 wei, nonce: 7}))
+            atkOrder, abi.encode(AsyncSwap.UserParams({user: attacker, executor: address(router), amountOutMin: 1 wei}))
         );
         vm.stopPrank();
     }

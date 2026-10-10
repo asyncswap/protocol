@@ -17,8 +17,11 @@ using AsyncOrderLibrary for AsyncOrder global;
 ///                     the maker's input.
 /// @param sqrtPrice    Pool sqrt-price the maker is willing to settle at if they cancel into a regular
 ///                     Uniswap swap. Used as the limit for the cancel-into-swap fallback.
-/// @param nonce        Per-maker monotonically-increasing nonce. Together with (key, owner, zeroForOne)
-///                     it uniquely identifies an order so it can be updated or cancelled.
+/// @param salt         Contract-assigned salt that disambiguates orders. The hook computes this at create
+///                     time from `keccak256(timestamp, block.number, msg.sender, owner, amountIn,
+///                     amountOutMin)` and emits it in `AsyncOrderCreated` so the maker can reference the
+///                     order in cancel / updatePrice. Submitters pass `bytes32(0)` on create — the value
+///                     in this slot is only read on cancel / updatePrice / fill paths.
 struct AsyncOrder {
     PoolKey key;
     address owner;
@@ -26,7 +29,7 @@ struct AsyncOrder {
     uint256 amountIn;
     uint256 amountOutMin;
     uint160 sqrtPrice;
-    uint64 nonce;
+    bytes32 salt;
 }
 
 /// @title AsyncOrderLibrary
@@ -35,10 +38,14 @@ library AsyncOrderLibrary {
     using PoolIdLibrary for PoolKey;
 
     /// @notice Stable identifier for an order, derived from its addressing fields.
-    /// @dev    (poolId, owner, zeroForOne, nonce) uniquely identifies one open order in v1
-    ///         and is the key used by cancel and updatePrice.
-    function orderId(AsyncOrder calldata order) internal pure returns (bytes32) {
-        return keccak256(abi.encode(order.key.toId(), order.owner, order.zeroForOne, order.nonce));
+    /// @dev    (chainId, poolId, owner, zeroForOne, salt) uniquely identifies one open order.
+    ///         - `block.chainid` keeps ids unique across chains where the same PoolKey can be
+    ///           deployed (Unichain mainnet + Sepolia, or future chains).
+    ///         - `salt` is contract-assigned at create time and stored off-chain (in the event
+    ///           log) so the maker can pass it back when calling cancel / updatePrice / fill.
+    ///         `view` (not `pure`) because `block.chainid` reads EVM context.
+    function orderId(AsyncOrder calldata order) internal view returns (bytes32) {
+        return keccak256(abi.encode(block.chainid, order.key.toId(), order.owner, order.zeroForOne, order.salt));
     }
 
     /// @notice The maker's limit price expressed as 1e18-scaled output per input.

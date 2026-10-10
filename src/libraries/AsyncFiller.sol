@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
@@ -13,7 +13,7 @@ import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
 /// @notice Stores open async orders and settles fills against them.
 ///
 /// @dev    Authorization model: the maker authorizes a Router/executor at order-creation time
-///         (`setExecutor[owner][executor] = true`). All subsequent fill / cancel / updatePrice
+///         (`isExecutor[owner][executor] = true`). All subsequent fill / cancel / updatePrice
 ///         calls on the hook must come from that registered executor. The hook forwards its
 ///         immediate caller (`msg.sender`) and the resolved end-actor address (filler / canceller)
 ///         into this library; the executor is checked here, and PM settlement targets the actor.
@@ -31,7 +31,7 @@ library AsyncFiller {
     struct State {
         IPoolManager poolManager;
         mapping(bytes32 orderId => OrderInfo) orders;
-        mapping(address owner => mapping(address executor => bool)) setExecutor;
+        mapping(address owner => mapping(address executor => bool)) isExecutor;
     }
 
     event AsyncOrderCreated(
@@ -41,7 +41,7 @@ library AsyncFiller {
         bool zeroForOne,
         uint256 amountIn,
         uint256 amountOutMin,
-        uint64 nonce
+        bytes32 salt
     );
 
     event AsyncOrderPriceUpdated(
@@ -61,7 +61,7 @@ library AsyncFiller {
     error ZeroAmount();
 
     function isExecutor(AsyncOrder calldata order, State storage self, address executor) internal view returns (bool) {
-        return self.setExecutor[order.owner][executor];
+        return self.isExecutor[order.owner][executor];
     }
 
     /// @notice Maker-only price update. The executor (router) is required to be authorized by
@@ -99,7 +99,7 @@ library AsyncFiller {
         address executor,
         address filler
     ) internal {
-        if (!self.setExecutor[order.owner][executor]) revert NotAuthorizedExecutor();
+        if (!self.isExecutor[order.owner][executor]) revert NotAuthorizedExecutor();
         OrderInfo storage info = self.orders[id];
         uint256 amountIn = info.amountIn;
         uint256 amountOutMin = info.amountOutMin;
@@ -130,7 +130,7 @@ library AsyncFiller {
     function cancel(State storage self, AsyncOrder calldata order, bytes32 id, address hook, address executor)
         internal
     {
-        if (executor != order.owner && !self.setExecutor[order.owner][executor]) {
+        if (executor != order.owner && !self.isExecutor[order.owner][executor]) {
             revert NotAuthorizedExecutor();
         }
         OrderInfo storage info = self.orders[id];

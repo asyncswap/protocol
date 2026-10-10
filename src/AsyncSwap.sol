@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {AsyncFiller} from "@async-swap/libraries/AsyncFiller.sol";
 import {AsyncOrder, AsyncOrderLibrary} from "@async-swap/types/AsyncOrder.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {IPoolManager, ModifyLiquidityParams, SwapParams} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {SafeCast} from "v4-core/libraries/SafeCast.sol";
@@ -53,13 +53,14 @@ contract AsyncSwap is BaseHook {
     bytes32 constant PENDING_NATIVE_DEPOSIT_SLOT = 0x9c2a7e4f3b1d8a5c6e0f2d4b7a9c1e3d5f8b6a0c2e4d7b9f1a3c5e7d9b1f3a50;
 
     /// @notice Hook params decoded from the `hookData` of `IPoolManager.swap`. The maker sets
-    ///         `amountOutMin` (their limit price) and `nonce` (so they can address this order
-    ///         later for cancel / updatePrice). `executor` is the address authorized to call fill.
+    ///         `amountOutMin` (their limit price); `executor` is the address authorized to call fill.
+    ///         Salt is contract-assigned at create time (see `_createOrder`) and emitted in
+    ///         `AsyncOrderCreated` — the maker fetches it from the event log to reference the
+    ///         order in cancel / updatePrice later.
     struct UserParams {
         address user;
         address executor;
         uint256 amountOutMin;
-        uint64 nonce;
     }
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
@@ -74,17 +75,17 @@ contract AsyncSwap is BaseHook {
     /// @inheritdoc BaseHook
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
         return Hooks.Permissions({
-            beforeInitialize: true,
+            beforeInitialize: true, // true
             afterInitialize: false,
-            beforeAddLiquidity: true,
+            beforeAddLiquidity: true, // true
             afterAddLiquidity: false,
             beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
-            beforeSwap: true,
+            beforeSwap: true, // true
             afterSwap: false,
             beforeDonate: false,
             afterDonate: false,
-            beforeSwapReturnDelta: true,
+            beforeSwapReturnDelta: true, // true
             afterSwapReturnDelta: false,
             afterAddLiquidityReturnDelta: false,
             afterRemoveLiquidityReturnDelta: false
@@ -92,7 +93,7 @@ contract AsyncSwap is BaseHook {
     }
 
     /// @inheritdoc BaseHook
-    function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
+    function _beforeAddLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
         internal
         pure
         override
@@ -116,8 +117,8 @@ contract AsyncSwap is BaseHook {
         return (info.amountIn, info.amountOutMin);
     }
 
-    function isExecutor(PoolId poolId, address owner, address executor) external view returns (bool) {
-        return asyncOrders[poolId].setExecutor[owner][executor];
+    function isExecutor(PoolId poolId, address maker, address executor) external view returns (bool) {
+        return asyncOrders[poolId].isExecutor[maker][executor];
     }
 
     function calculateHookFee(uint256) public pure returns (uint256) {
@@ -166,12 +167,11 @@ contract AsyncSwap is BaseHook {
     }
 
     /// @inheritdoc BaseHook
-    function _beforeSwap(
-        address sender,
-        PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
-        bytes calldata hookParams
-    ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
+    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookParams)
+        internal
+        override
+        returns (bytes4, BeforeSwapDelta, uint24)
+    {
         if (params.amountSpecified > 0) revert ExactInputOnly();
 
         PoolId poolId = key.toId();
@@ -203,22 +203,34 @@ contract AsyncSwap is BaseHook {
         AsyncFiller.State storage state = asyncOrders[poolId];
 
         // executor must already be authorised by the user — no implicit grant via hookData.
-        if (!state.setExecutor[hookData.user][hookData.executor]) revert AsyncFiller.NotAuthorizedExecutor();
-
-        bytes32 id = keccak256(abi.encode(poolId, hookData.user, zeroForOne, hookData.nonce));
+        if (!state.isExecutor[hookData.user][hookData.executor]) revert AsyncFiller.NotAuthorizedExecutor();
         if (amountIn == 0 || hookData.amountOutMin == 0) revert AsyncFiller.ZeroAmount();
-        if (state.orders[id].amountIn != 0) revert AsyncFiller.OrderAlreadyExists();
-        state.orders[id] = AsyncFiller.OrderInfo({amountIn: amountIn, amountOutMin: hookData.amountOutMin});
-        emit AsyncFiller.AsyncOrderCreated(
-            poolId, id, hookData.user, zeroForOne, amountIn, hookData.amountOutMin, hookData.nonce
+
+        // Contract-assigned salt — derived from immutable order params + block context
+        // so the maker doesn't need to pick a nonce. The orderId preimage MUST match
+        // `AsyncOrderLibrary.orderId` (chainId, poolId, owner, zeroForOne, salt), since
+        // the cancel/updatePrice/fill paths recompute the id via the library.
+        bytes32 salt = keccak256(
+            abi.encode(block.timestamp, block.number, msg.sender, hookData.user, amountIn, hookData.amountOutMin)
         );
+        bytes32 id = keccak256(abi.encode(block.chainid, poolId, hookData.user, zeroForOne, salt));
+        // Collision walk: same maker submitting identical (amountIn, amountOutMin) twice
+        // in the same block would land on the same salt. Re-hash with an attempt counter
+        // until the slot is free. The caller pays the extra gas, so no griefing surface.
+        while (state.orders[id].amountIn != 0) {
+            salt = keccak256(abi.encode(salt));
+            id = keccak256(abi.encode(block.chainid, poolId, hookData.user, zeroForOne, salt));
+        }
+
+        state.orders[id] = AsyncFiller.OrderInfo({amountIn: amountIn, amountOutMin: hookData.amountOutMin});
+        emit AsyncFiller.AsyncOrderCreated(poolId, id, hookData.user, zeroForOne, amountIn, hookData.amountOutMin, salt);
     }
 
     /// @notice Maker explicitly authorises an executor (typically the Router) to submit
     ///         and fill orders on their behalf. Without this grant, `_createOrder` reverts
     ///         on the maker's first swap. Pairs with `revokeExecutor` for rotation.
     function setExecutor(PoolId poolId, address executor, bool allow) external {
-        asyncOrders[poolId].setExecutor[msg.sender][executor] = allow;
+        asyncOrders[poolId].isExecutor[msg.sender][executor] = allow;
     }
 
     /// @notice Accept ETH transfers. The Router (or any caller paying for a native-output

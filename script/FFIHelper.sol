@@ -75,7 +75,7 @@ contract FFIHelper is Script, DeploymentsRegistry {
         uint256 amountIn;
         uint256 amountOutMin;
         uint160 sqrtPrice;
-        uint64 nonce;
+        bytes32 salt;
     }
 
     function _orderPath() internal view returns (string memory) {
@@ -91,7 +91,7 @@ contract FFIHelper is Script, DeploymentsRegistry {
         vm.serializeUint(k, "amountIn", r.amountIn);
         vm.serializeUint(k, "amountOutMin", r.amountOutMin);
         vm.serializeUint(k, "sqrtPrice", uint256(r.sqrtPrice));
-        string memory j = vm.serializeUint(k, "nonce", uint256(r.nonce));
+        string memory j = vm.serializeBytes32(k, "salt", r.salt);
         vm.writeJson(j, _orderPath());
     }
 
@@ -105,7 +105,7 @@ contract FFIHelper is Script, DeploymentsRegistry {
             amountIn: json.readUint(".amountIn"),
             amountOutMin: json.readUint(".amountOutMin"),
             sqrtPrice: uint160(json.readUint(".sqrtPrice")),
-            nonce: uint64(json.readUint(".nonce"))
+            salt: json.readBytes32(".salt")
         });
     }
 }

@@ -15,10 +15,6 @@ contract H04_NatspecMismatchTest is SetupHook {
         topUp(bob, 100 ether);
     }
 
-    function _orderId(address maker, bool zeroForOne, uint64 nonce) internal view returns (bytes32) {
-        return keccak256(abi.encode(poolId, maker, zeroForOne, nonce));
-    }
-
     function test_RevertWhen_H04_UserDataDivergesFromOrder() public {
         uint256 amountIn = 1 ether;
         uint256 placeholder = 1;
@@ -31,17 +27,14 @@ contract H04_NatspecMismatchTest is SetupHook {
             amountIn: amountIn,
             amountOutMin: placeholder,
             sqrtPrice: 2 ** 96,
-            nonce: 0
+            salt: bytes32(0)
         });
 
         vm.startPrank(alice);
         token0.approve(address(router), amountIn);
         vm.expectRevert();
         router.swap(
-            order,
-            abi.encode(
-                AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: realLimit, nonce: 0})
-            )
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: realLimit}))
         );
         vm.stopPrank();
     }
