@@ -207,4 +207,16 @@ contract H05_NativeOverpayStrandedTest is Test {
         vm.prank(bob);
         router.fillOrder{value: 0.9 ether}(order, 0.9 ether, "");
     }
+
+    function test_L02_nativeInput_rejectsMismatchedOwner() public {
+        AsyncOrder memory order = _order(bob, true, 1 ether, 0.9 ether);
+        uint256 makerBefore = alice.balance;
+        vm.prank(alice);
+        vm.expectRevert("Only owner can swap");
+        router.swap{value: 1 ether}(
+            order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
+        );
+        assertEq(alice.balance, makerBefore);
+        assertEq(address(router).balance, 0);
+    }
 }

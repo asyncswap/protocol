@@ -101,8 +101,10 @@ contract Router is EIP712 {
     ///         the router holds the ETH and settles it to PM during unlock. For ERC20 input
     ///         the maker must approve the router for `amountIn` of the input token.
     function swap(AsyncOrder calldata order, bytes memory userData) external payable {
+        require(order.owner == msg.sender, "Only owner can swap");
         address onBehalf = address(this);
         AsyncSwap.UserParams memory userParams = abi.decode(userData, (AsyncSwap.UserParams));
+        require(userParams.user == order.owner, "user mismatch");
         require(userParams.executor == address(this), "Use router as your executor!");
         require(userParams.amountOutMin == order.amountOutMin, "amountOutMin mismatch");
 
