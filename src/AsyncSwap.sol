@@ -42,6 +42,9 @@ contract AsyncSwap is BaseHook, EIP712 {
     /// @notice Holds fee claims separately from open-order escrow.
     FeeVault public immutable feeVault;
 
+    /// @notice Chain-specific USDC address. Every pool must include this exact currency.
+    Currency public immutable numeraire;
+
     /// @notice Unordered nonces consumed by signed maker actions (`setExecutorWithSig`, `updatePriceWithSig`).
     mapping(address maker => mapping(uint256 nonce => bool)) public nonceUsed;
 
@@ -64,6 +67,8 @@ contract AsyncSwap is BaseHook, EIP712 {
     error SignatureExpired();
     error InvalidSignature();
     error NonceAlreadyUsed();
+    error InvalidNumeraire();
+    error NumeraireRequired();
 
     /// @notice Emitted when ownership is transferred.
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
@@ -99,7 +104,9 @@ contract AsyncSwap is BaseHook, EIP712 {
         uint256 amountOutMin;
     }
 
-    constructor(IPoolManager _poolManager) BaseHook(_poolManager) EIP712("AsyncSwap", "1") {
+    constructor(IPoolManager _poolManager, Currency _numeraire) BaseHook(_poolManager) EIP712("AsyncSwap", "1") {
+        if (Currency.unwrap(_numeraire).code.length == 0) revert InvalidNumeraire();
+        numeraire = _numeraire;
         owner = msg.sender;
         feeVault = new FeeVault(_poolManager);
         emit OwnershipTransferred(address(0), msg.sender);
@@ -127,6 +134,7 @@ contract AsyncSwap is BaseHook, EIP712 {
 
     /// @inheritdoc BaseHook
     function _beforeInitialize(address, PoolKey calldata key, uint160) internal virtual override returns (bytes4) {
+        if (!(key.currency0 == numeraire || key.currency1 == numeraire)) revert NumeraireRequired();
         require(key.fee == LPFeeLibrary.DYNAMIC_FEE_FLAG, "Dude use dynamic fees flag");
         asyncOrders[key.toId()].poolManager = poolManager;
         return this.beforeInitialize.selector;

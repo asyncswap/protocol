@@ -13,7 +13,7 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 
 /// @dev Exercise fee accounting with a larger test fee. Production rate is tested separately.
 contract FeeTestHook is AsyncSwap {
-    constructor(IPoolManager manager) AsyncSwap(manager) {}
+    constructor(IPoolManager manager, Currency numeraire) AsyncSwap(manager, numeraire) {}
 
     function calculatePoolFee(uint24, uint256 amount) public pure override returns (uint256) {
         return amount / 100;
@@ -34,7 +34,7 @@ contract I01_FeeClaimsTest is SetupHook {
             Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
                 | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
-        deployCodeTo("FeeTestHook", abi.encode(manager), address(flags));
+        deployCodeTo("FeeTestHook", abi.encode(manager, currency1), address(flags));
         hook = AsyncSwap(payable(address(flags)));
         vault = hook.feeVault();
         _deployRouter();

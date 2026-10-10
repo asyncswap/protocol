@@ -42,6 +42,8 @@ contract InitPoolScript is FFIHelper {
         (address inAddr,) = _resolveToken(inSym);
         (address outAddr,) = _resolveToken(outSym);
         require(inAddr != outAddr, "TOKEN_IN must differ from TOKEN_OUT");
+        address numeraire = Currency.unwrap(hook.numeraire());
+        require(inAddr == numeraire || outAddr == numeraire, "Pool must include configured USDC");
 
         Currency c0;
         Currency c1;

@@ -20,12 +20,8 @@ contract SwapScript is FFIHelper {
     Router router;
     PoolKey key;
 
-    // 100 *whole tokens* — both pool currencies are 18-decimals in the deploy
-    // pipeline. The previous default (100 wei) rendered as "0" in the frontend
-    // since it's 1e-16 of a normal token.
-    uint256 internal constant DEFAULT_AMOUNT_IN = 100 ether;
-    uint256 internal constant DEFAULT_AMOUNT_OUT_MIN = 100 ether;
-    bool internal constant DEFAULT_ZERO_FOR_ONE = true;
+    // Amounts are supplied explicitly in each token's base units: USDC uses six
+    // decimals while the paired asset may use a different scale.
 
     function setUp() public {
         (, address r) = _getDeployedHook();
@@ -39,9 +35,9 @@ contract SwapScript is FFIHelper {
         AsyncOrder memory order = AsyncOrder({
             key: key,
             owner: OWNER,
-            zeroForOne: DEFAULT_ZERO_FOR_ONE,
-            amountIn: DEFAULT_AMOUNT_IN,
-            amountOutMin: DEFAULT_AMOUNT_OUT_MIN,
+            zeroForOne: vm.envOr("ZERO_FOR_ONE", true),
+            amountIn: vm.envUint("AMOUNT_IN"),
+            amountOutMin: vm.envUint("AMOUNT_OUT_MIN"),
             sqrtPrice: sqrtPrice,
             // Initial submit: ignored by the hook, which assigns its own salt.
             salt: bytes32(0)

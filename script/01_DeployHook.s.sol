@@ -7,6 +7,7 @@ import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {Router} from "@async-swap/Router.sol";
 import {console} from "forge-std/Script.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 
 /// @notice Deploys the AsyncSwap hook (with the required permission flags + 0x91 prefix) and the
@@ -33,8 +34,11 @@ contract DeployHookScript is FFIHelper {
                 | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
+        // Supply the approved USDC contract for the target chain; never infer identity from a symbol.
+        Currency numeraire = Currency.wrap(vm.envAddress("USDC_ADDRESS"));
+        require(Currency.unwrap(numeraire).code.length > 0, "USDC_ADDRESS must be a deployed token");
         bytes memory creationCode = type(AsyncSwap).creationCode;
-        bytes memory constructorArgs = abi.encode(address(manager));
+        bytes memory constructorArgs = abi.encode(address(manager), numeraire);
         bytes32 initCodeHash = keccak256(abi.encodePacked(creationCode, constructorArgs));
 
         bytes32 salt = _readSaltEnv();
@@ -51,7 +55,7 @@ contract DeployHookScript is FFIHelper {
         console.log("predicted hook address:", predicted);
 
         vm.startBroadcast(OWNER);
-        hook = new AsyncSwap{salt: salt}(manager);
+        hook = new AsyncSwap{salt: salt}(manager, numeraire);
         require(address(hook) == predicted, "deployed hook address mismatch");
         router = new Router(manager, hook, ISignatureTransfer(PERMIT2));
         vm.stopBroadcast();

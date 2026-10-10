@@ -85,12 +85,13 @@ commit always reflects the formatted version. To bypass for a single commit:
 
 ## Local pipeline
 
-`dev/start.sh` chains the five scripts against a running local Anvil:
+Run the following scripts against a running local Anvil. Deploy and fund a mock
+USDC first, then set `USDC_ADDRESS` to its address before deploying the hook:
 
 ```
 00 deploy PoolManager  (or record canonical for known chains)
 01 deploy hook + Router (mines salt via FFI; verifies prefix + flag bits)
-02 init pool + mint mock tokens
+02 init asset/numeraire pool + mint the mock asset
 03 swap                 (maker submits an order)
 04 cancelOrder          (commented; uncomment to test cancel instead of fill)
 05 executeOrder         (filler completes the order)
@@ -98,6 +99,10 @@ commit always reflects the formatted version. To bypass for a single commit:
 
 Each script writes / reads from `deployments/<chainId>.json` so subsequent
 scripts pick up addresses from the registry, not from `broadcast/` artifacts.
+The pool initializer uses the hook's configured numeraire; it does not mint USDC.
+For `03_Swap.s.sol`, supply `AMOUNT_IN` and `AMOUNT_OUT_MIN` in their respective
+token base units, and optionally `ZERO_FOR_ONE` (default true). Do not use 18-decimal
+amounts for 6-decimal USDC. `Trade.s.sol` remains the symbol-based mainnet helper.
 
 ## Verifying a fresh deploy on Uniscan
 
@@ -109,7 +114,7 @@ forge verify-contract \
   --chain unichain \
   --etherscan-api-key $ETHERSCAN_API_KEY \
   --watch \
-  --constructor-args 0x000000000000000000000000<poolManagerAddress> \
+  --constructor-args "$(cast abi-encode 'constructor(address,address)' "$POOL_MANAGER" "$USDC_ADDRESS")" \
   <hookAddress> \
   src/AsyncSwap.sol:AsyncSwap
 
@@ -117,10 +122,32 @@ forge verify-contract \
   --chain unichain \
   --etherscan-api-key $ETHERSCAN_API_KEY \
   --watch \
-  --constructor-args 0x000000000000000000000000<poolManagerAddress>000000000000000000000000<hookAddress> \
+  --constructor-args "$(cast abi-encode 'constructor(address,address,address)' "$POOL_MANAGER" "$HOOK" "$PERMIT2")" \
   <routerAddress> \
   src/Router.sol:Router
 ```
+
+### USDC numeraire
+
+Every pool attached to this hook must include the exact USDC address configured
+at deployment. `AsyncSwap(poolManager, numeraire)` stores that address immutably;
+`numeraire()` exposes it. `beforeInitialize` rejects a pool with neither currency
+equal to it. USDC can be currency0 or currency1 according to address sorting.
+ETH/USDC is supported; ETH/other-token and non-USDC ERC-20 pairs are rejected.
+
+`01_DeployHook.s.sol` requires `USDC_ADDRESS`. Verify it against the issuer's
+registry for the target chain before deployment. The constructor rejects zero
+and addresses without code, but cannot certify that an arbitrary contract is
+issuer-approved USDC. Token names/symbols and decimals do not establish identity.
+The address is included in CREATE2 salt mining and constructor verification.
+
+This is a pairing rule, not an oracle or price peg. Order amounts stay in each
+token's base units; makers specify the net output they accept. Fees still accrue
+in the output token, which can be the asset when buying with USDC. Asset-to-asset
+routing through USDC is not implemented by this change.
+
+A new hook deployment and new pools are required. Existing hooks, pools, and open
+orders are unaffected. See [the architecture decision](decisions/usdc-numeraire.md).
 
 ### Protocol fee claims
 
