@@ -121,3 +121,27 @@ forge verify-contract \
   <routerAddress> \
   src/Router.sol:Router
 ```
+
+### Protocol fee claims
+
+The production fee rate remains zero. If a future hook implementation charges fees,
+creation escrows the full input as PoolManager ERC-6909 claims in the hook.
+Only a successful fill deducts the fee: the filler receives input minus the fee,
+and fee claims are minted to `hook.feeVault()`. The maker receives the full agreed
+output. Cancellation refunds the entire input; failed fills earn no fee.
+`OrderFeeAccrued` records the fee, and `AsyncOrderFilled.amountIn` records the net
+input paid to the filler.
+
+The current `hook.owner()` can call `FeeVault.collect(currency, recipient)` to
+redeem that currency's entire fee balance as native ETH or ERC-20 tokens. No
+PoolManager approval is needed. Ownership transfers also transfer collection
+authority. Collection burns only the vault's claims and cannot redeem the hook's
+open-order claims. `PoolManager.balanceOf(vault, currency.toId())` reports available
+fees, and `FeesCollected` records withdrawals. The hook's `sweep` remains for raw
+donations/stranded balances.
+
+The hook constructor deploys its vault automatically. This change requires a new
+hook deployment and a newly mined salt; existing deployed hooks are unaffected.
+Nonzero fees are tested with `FeeTestHook` in `test/audit/I01_FeeClaims.t.sol`;
+activating a real fee rate remains a separate change requiring frontend quoting
+and signed-order review.

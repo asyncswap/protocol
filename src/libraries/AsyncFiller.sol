@@ -13,7 +13,7 @@ import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
 /// @notice Stores open async orders and settles fills against them.
 ///
 /// @dev    Authorization model: the maker authorizes a Router/executor at order-creation time
-///         (`isExecutor[owner][executor] = true`). All subsequent fill / cancel / updatePrice
+///         (`setExecutor[owner][executor] = true`). All subsequent fill / cancel / updatePrice
 ///         calls on the hook must come from that registered executor. The hook forwards its
 ///         immediate caller (`msg.sender`) and the resolved end-actor address (filler / canceller)
 ///         into this library; the executor is checked here, and PM settlement targets the actor.
@@ -54,6 +54,8 @@ library AsyncFiller {
 
     event AsyncOrderCancelled(PoolId indexed poolId, bytes32 indexed orderId, address indexed owner, uint256 amountIn);
 
+    event OrderFeeAccrued(bytes32 indexed orderId, Currency indexed currency, uint256 amount);
+
     error OrderAlreadyExists();
     error OrderNotFound();
     error NotOrderOwner();
@@ -86,18 +88,18 @@ library AsyncFiller {
     ///         order owner; `filler` is the actual end-user paying the output and receiving the
     ///         input. Must be invoked from inside an `IPoolManager.unlock` context.
     ///
-    /// @dev    PM operations net to zero on both currencies:
-    ///           - output already settled by router from filler (see Router.unlockCallback)
-    ///           - hook mints 6909 of output to the maker      → -outputDelta on locker
-    ///           - hook burns its 6909 of input                → -inputDelta on locker
-    ///           - filler `take`s real input                   → +inputDelta on locker
+    /// @dev Output is settled from the hook and paid in full to the maker. Input claims
+    ///      are burned in full, then split into real tokens for the filler and fee claims
+    ///      for the vault. Both currency deltas net to zero. A failed fill reverts all legs.
     function fill(
         State storage self,
         AsyncOrder calldata order,
         bytes32 id,
         address hook,
         address executor,
-        address filler
+        address filler,
+        address feeVault,
+        uint256 fee
     ) internal {
         if (!self.isExecutor[order.owner][executor]) revert NotAuthorizedExecutor();
         OrderInfo storage info = self.orders[id];
@@ -116,11 +118,15 @@ library AsyncFiller {
         output.settle(self.poolManager, hook, amountOutMin, false);
         output.take(self.poolManager, order.owner, amountOutMin, false);
 
-        // Input side: burn the hook's 6909 input claim and pay the filler real input tokens.
+        // Input side: earn the fee only as part of this successful full fill.
         input.settle(self.poolManager, hook, amountIn, true);
-        input.take(self.poolManager, filler, amountIn, false);
+        input.take(self.poolManager, filler, amountIn - fee, false);
+        if (fee != 0) {
+            input.take(self.poolManager, feeVault, fee, true);
+            emit OrderFeeAccrued(id, input, fee);
+        }
 
-        emit AsyncOrderFilled(order.key.toId(), id, filler, amountIn, amountOutMin);
+        emit AsyncOrderFilled(order.key.toId(), id, filler, amountIn - fee, amountOutMin);
     }
 
     /// @notice Cancel an unfilled order. Must be called inside an unlock context. Auth: `executor`

@@ -15,6 +15,7 @@ import {BeforeSwapDelta, toBeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.
 import {Currency} from "v4-core/types/Currency.sol";
 import {PoolId} from "v4-core/types/PoolId.sol";
 import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
+import {FeeVault} from "src/FeeVault.sol";
 import {BaseHook} from "src/BaseHook.sol";
 
 /// @title AsyncSwap
@@ -35,8 +36,11 @@ contract AsyncSwap is BaseHook, EIP712 {
     /// @notice Per-pool order book.
     mapping(PoolId poolId => AsyncFiller.State) public asyncOrders;
 
-    /// @notice Protocol owner authorized to sweep accumulated fees / stranded balances.
+    /// @notice Protocol owner authorized to collect vault fees and sweep stranded balances.
     address public owner;
+
+    /// @notice Holds fee claims separately from open-order escrow.
+    FeeVault public immutable feeVault;
 
     /// @notice Unordered nonces consumed by signed maker actions (`setExecutorWithSig`, `updatePriceWithSig`).
     mapping(address maker => mapping(uint256 nonce => bool)) public nonceUsed;
@@ -97,6 +101,7 @@ contract AsyncSwap is BaseHook, EIP712 {
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) EIP712("AsyncSwap", "1") {
         owner = msg.sender;
+        feeVault = new FeeVault(_poolManager);
         emit OwnershipTransferred(address(0), msg.sender);
     }
 
@@ -109,8 +114,8 @@ contract AsyncSwap is BaseHook, EIP712 {
     }
 
     /// @notice Sweep an accumulated balance of `currency` held by this hook to `to`.
-    /// @dev    Between transactions the hook's raw balance holds only protocol fees and stranded
-    ///         funds (e.g. native-output fill overpayments): maker input is escrowed as ERC-6909
+    /// @dev    Between transactions the hook's raw balance holds only stranded funds or donations;
+    ///         fees belong to feeVault. Maker input is escrowed as ERC-6909
     ///         claims in the PoolManager, and the transient native-deposit ledger is cleared at the
     ///         end of every tx, so no per-order escrow lives in the hook's balance across calls.
     function sweep(Currency currency, address to) external onlyOwner {
@@ -180,7 +185,7 @@ contract AsyncSwap is BaseHook, EIP712 {
         return 0;
     }
 
-    function calculatePoolFee(uint24, uint256) public pure returns (uint256) {
+    function calculatePoolFee(uint24, uint256) public pure virtual returns (uint256) {
         return 0;
     }
 
@@ -204,7 +209,9 @@ contract AsyncSwap is BaseHook, EIP712 {
                 tstore(PENDING_NATIVE_DEPOSIT_SLOT, sub(pending, amountOutMin))
             }
         }
-        asyncOrders[order.key.toId()].fill(order, id, address(this), msg.sender, filler);
+        AsyncFiller.State storage state = asyncOrders[order.key.toId()];
+        uint256 fee = calculatePoolFee(order.key.fee, state.orders[id].amountIn);
+        state.fill(order, id, address(this), msg.sender, filler, address(feeVault), fee);
     }
 
     /// @notice Maker updates the limit price of an unfilled order. Direct call from the maker —
@@ -235,18 +242,14 @@ contract AsyncSwap is BaseHook, EIP712 {
 
         Currency specified = params.zeroForOne ? key.currency0 : key.currency1;
 
-        // Hook takes maker's input as a 6909 claim. The BeforeSwapDelta below offsets the swap.
+        // Escrow the entire deposit; fees are earned only on successful fill.
         specified.take(poolManager, address(this), amountTaken, true);
-
-        uint256 feeAmount = calculatePoolFee(key.fee, amountTaken);
-        uint256 finalTaken = amountTaken - feeAmount;
-
-        _createOrder(poolId, params.zeroForOne, finalTaken, hookData);
+        _createOrder(poolId, params.zeroForOne, amountTaken, hookData);
 
         if (specified == key.currency0) {
-            emit HookSwap(PoolId.unwrap(poolId), sender, amountTaken.toInt128(), 0, feeAmount.toUint128(), 0);
+            emit HookSwap(PoolId.unwrap(poolId), sender, amountTaken.toInt128(), 0, 0, 0);
         } else {
-            emit HookSwap(PoolId.unwrap(poolId), sender, 0, amountTaken.toInt128(), 0, feeAmount.toUint128());
+            emit HookSwap(PoolId.unwrap(poolId), sender, 0, amountTaken.toInt128(), 0, 0);
         }
 
         BeforeSwapDelta beforeSwapDelta = toBeforeSwapDelta(int128(-params.amountSpecified), 0);
@@ -283,7 +286,7 @@ contract AsyncSwap is BaseHook, EIP712 {
 
     /// @notice Maker explicitly authorises an executor (typically the Router) to submit
     ///         and fill orders on their behalf. Without this grant, `_createOrder` reverts
-    ///         on the maker's first swap. Pairs with `revokeExecutor` for rotation.
+    ///         on the maker's first swap. Pass `allow = false` to revoke an executor.
     function setExecutor(PoolId poolId, address executor, bool allow) external {
         asyncOrders[poolId].isExecutor[msg.sender][executor] = allow;
     }

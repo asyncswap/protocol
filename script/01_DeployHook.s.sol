@@ -71,6 +71,10 @@ contract DeployHookScript is FFIHelper {
         _upsertEntry(
             block.chainid, Entry({name: "Router", addr: address(router), startBlock: deployBlock, txHash: bytes32(0)})
         );
+        _upsertEntry(
+            block.chainid,
+            Entry({name: "FeeVault", addr: address(hook.feeVault()), startBlock: deployBlock, txHash: bytes32(0)})
+        );
     }
 
     /// @dev Calls `bun run script/mine-hook-salt.ts --ffi --init-code-hash <hash>`.
