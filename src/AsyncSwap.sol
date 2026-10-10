@@ -29,6 +29,9 @@ contract AsyncSwap is BaseHook {
     /// @notice Per-pool order book.
     mapping(PoolId poolId => AsyncFiller.State) public asyncOrders;
 
+    /// @notice Protocol owner authorized to sweep accumulated fees / stranded balances.
+    address public owner;
+
     /// @notice Pool-level swap-event mirror; bytes32 poolId for indexer compatibility.
     /// @dev    See https://github.com/OpenZeppelin/uniswap-hooks BaseAsyncSwap for the source pattern.
     event HookSwap(
@@ -43,6 +46,20 @@ contract AsyncSwap is BaseHook {
     error UnsupportedLiquidity();
     error ExactInputOnly();
     error UnaccountedNativeOutput();
+    error NotOwner();
+    error ZeroAddress();
+
+    /// @notice Emitted when ownership is transferred.
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /// @notice Emitted when the owner sweeps an accumulated balance.
+    event Swept(Currency indexed currency, address indexed to, uint256 amount);
+
+    /// @notice Restricts a call to the protocol owner.
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
 
     /// @dev Transient slot — keccak256("asyncswap.hook.pendingNativeDeposit") - 1.
     ///      Tracks ETH deposited to this contract within the current tx via
@@ -63,7 +80,30 @@ contract AsyncSwap is BaseHook {
         uint256 amountOutMin;
     }
 
-    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
+    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {
+        owner = msg.sender;
+        emit OwnershipTransferred(address(0), msg.sender);
+    }
+
+    /// @notice Transfer protocol ownership. The deployer (or a factory) should call this after
+    ///         deployment to hand control to the intended fee recipient / governance address.
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    /// @notice Sweep an accumulated balance of `currency` held by this hook to `to`.
+    /// @dev    Between transactions the hook's raw balance holds only protocol fees and stranded
+    ///         funds (e.g. native-output fill overpayments): maker input is escrowed as ERC-6909
+    ///         claims in the PoolManager, and the transient native-deposit ledger is cleared at the
+    ///         end of every tx, so no per-order escrow lives in the hook's balance across calls.
+    function sweep(Currency currency, address to) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        uint256 amount = currency.balanceOfSelf();
+        currency.transfer(to, amount);
+        emit Swept(currency, to, amount);
+    }
 
     /// @inheritdoc BaseHook
     function _beforeInitialize(address, PoolKey calldata key, uint160) internal virtual override returns (bytes4) {
