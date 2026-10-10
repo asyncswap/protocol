@@ -88,9 +88,9 @@ library AsyncFiller {
     ///         order owner; `filler` is the actual end-user paying the output and receiving the
     ///         input. Must be invoked from inside an `IPoolManager.unlock` context.
     ///
-    /// @dev Output is settled from the hook and paid in full to the maker. Input claims
-    ///      are burned in full, then split into real tokens for the filler and fee claims
-    ///      for the vault. Both currency deltas net to zero. A failed fill reverts all legs.
+    /// @dev Settle gross output, pay the signed net minimum to the maker, and mint fee
+    ///      claims to the vault. Burn input claims and pay the full input to the filler.
+    ///      Both currency deltas net to zero. A failed fill reverts all legs.
     function fill(
         State storage self,
         AsyncOrder calldata order,
@@ -115,18 +115,17 @@ library AsyncFiller {
         // Output side: hook holds the filler's tokens (router transferred them in). Settle them
         // to PM, then take real tokens straight to the maker — no 6909 withdrawal step needed
         // post-fill. Both attribute to the hook → net zero on output delta.
-        output.settle(self.poolManager, hook, amountOutMin, false);
+        output.settle(self.poolManager, hook, amountOutMin + fee, false);
         output.take(self.poolManager, order.owner, amountOutMin, false);
 
-        // Input side: earn the fee only as part of this successful full fill.
-        input.settle(self.poolManager, hook, amountIn, true);
-        input.take(self.poolManager, filler, amountIn - fee, false);
         if (fee != 0) {
-            input.take(self.poolManager, feeVault, fee, true);
-            emit OrderFeeAccrued(id, input, fee);
+            output.take(self.poolManager, feeVault, fee, true);
+            emit OrderFeeAccrued(id, output, fee);
         }
 
-        emit AsyncOrderFilled(order.key.toId(), id, filler, amountIn - fee, amountOutMin);
+        input.settle(self.poolManager, hook, amountIn, true);
+        input.take(self.poolManager, filler, amountIn, false);
+        emit AsyncOrderFilled(order.key.toId(), id, filler, amountIn, amountOutMin);
     }
 
     /// @notice Cancel an unfilled order. Must be called inside an unlock context. Auth: `executor`

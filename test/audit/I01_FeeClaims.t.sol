@@ -11,7 +11,7 @@ import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 
-/// @dev Exercise the dormant fee path without enabling production fees.
+/// @dev Exercise fee accounting with a larger test fee. Production rate is tested separately.
 contract FeeTestHook is AsyncSwap {
     constructor(IPoolManager manager) AsyncSwap(manager) {}
 
@@ -62,24 +62,28 @@ contract I01_FeeClaimsTest is SetupHook {
 
     function _fill(AsyncOrder memory order) internal {
         vm.startPrank(bob);
-        (order.zeroForOne ? token1 : token0).approve(address(router), order.amountOutMin);
-        router.fillOrder(order, type(uint256).max, "");
+        (order.zeroForOne ? token1 : token0).approve(address(router), type(uint256).max);
+        Currency output = order.zeroForOne ? order.key.currency1 : order.key.currency0;
+        uint256 grossOutput = 1.01 ether;
+        router.fillOrder{value: output.isAddressZero() ? grossOutput : 0}(order, type(uint256).max, "");
         vm.stopPrank();
     }
 
     function test_collectBeforeFill_cannotTakeEscrow() public {
         AsyncOrder memory order = _create(true, 10 ether);
         assertEq(manager.balanceOf(address(vault), currency0.toId()), 0);
-        vault.collect(currency0, bob);
+        vault.collect(currency1, bob);
         assertEq(token0.balanceOf(bob), 100 ether);
         assertEq(manager.balanceOf(address(hook), currency0.toId()), 10 ether);
         _fill(order);
-        assertEq(token0.balanceOf(bob), 109.9 ether);
+        assertEq(token0.balanceOf(bob), 110 ether);
         assertEq(token1.balanceOf(alice), 101 ether);
-        assertEq(manager.balanceOf(address(vault), currency0.toId()), 0.1 ether);
-        vault.collect(currency0, bob);
+        assertEq(manager.balanceOf(address(vault), currency1.toId()), 0.01 ether);
+        vault.collect(currency1, bob);
         assertEq(token0.balanceOf(bob), 110 ether);
         assertEq(token0.balanceOf(address(manager)), 0);
+        assertEq(token1.balanceOf(bob), 99 ether);
+        assertEq(manager.balanceOf(address(vault), currency1.toId()), 0);
     }
 
     function test_cancelReverseDirection_refundsFullDeposit() public {
@@ -113,25 +117,30 @@ contract I01_FeeClaimsTest is SetupHook {
         AsyncOrder memory order = _create(direction, gross);
         Currency input = direction ? currency0 : currency1;
         _fill(order);
-        assertEq(input.balanceOf(bob), 100 ether + gross - gross / 100);
-        assertEq(manager.balanceOf(address(vault), input.toId()), gross / 100);
+        assertEq(input.balanceOf(bob), 100 ether + gross);
+        Currency output = direction ? currency1 : currency0;
+        assertEq(manager.balanceOf(address(vault), output.toId()), 0.01 ether);
+        vault.collect(output, bob);
+        assertEq(output.balanceOf(bob), 99 ether);
         assertEq(manager.balanceOf(address(hook), input.toId()), 0);
         vault.collect(input, bob);
         assertEq(input.balanceOf(address(manager)), 0);
     }
 
-    function test_feeUsesStoredInput_andCollectionPreservesOtherOrders() public {
+    function test_feeUsesStoredOutput_andCollectionPreservesOtherOrders() public {
         AsyncOrder memory first = _create(true, 10 ether);
         AsyncOrder memory second = _create(true, 20 ether);
-        first.amountIn = 1; // Untrusted calldata must not reduce the fee.
+        first.amountOutMin = 1; // Untrusted calldata must not reduce the fee.
         _fill(first);
-        vault.collect(currency0, bob);
+        vault.collect(currency1, bob);
         assertEq(token0.balanceOf(bob), 110 ether);
         assertEq(manager.balanceOf(address(hook), currency0.toId()), 20 ether);
         vm.prank(alice);
         router.cancelOrder(second);
         assertEq(token0.balanceOf(alice), 90 ether);
         assertEq(token0.balanceOf(address(manager)), 0);
+        assertEq(token1.balanceOf(bob), 99 ether);
+        assertEq(manager.balanceOf(address(vault), currency1.toId()), 0);
     }
 
     function test_failedFillDoesNotEarnFees() public {
@@ -148,20 +157,21 @@ contract I01_FeeClaimsTest is SetupHook {
         assertEq(token0.balanceOf(alice), 100 ether);
     }
 
-    function _nativeOrder() internal returns (AsyncOrder memory) {
+    function _nativeOrder(bool nativeInput) internal returns (AsyncOrder memory) {
         key.currency0 = Currency.wrap(address(0));
         poolId = key.toId();
         _initializePool();
         vm.prank(alice);
         hook.setExecutor(poolId, address(router), true);
         vm.deal(alice, 10 ether);
-        return _create(true, 10 ether);
+        vm.deal(bob, 2 ether);
+        return _create(nativeInput, 10 ether);
     }
 
     function test_nativeCancellation_refundsFullDeposit() public {
-        AsyncOrder memory order = _nativeOrder();
+        AsyncOrder memory order = _nativeOrder(true);
         vault.collect(key.currency0, bob);
-        assertEq(bob.balance, 0);
+        assertEq(bob.balance, 2 ether);
         vm.prank(alice);
         router.cancelOrder(order);
         assertEq(alice.balance, 10 ether);
@@ -169,12 +179,12 @@ contract I01_FeeClaimsTest is SetupHook {
     }
 
     function test_failedNativeRecipient_preservesClaims() public {
-        _fill(_nativeOrder());
+        _fill(_nativeOrder(false));
         vm.expectRevert();
         vault.collect(key.currency0, address(this)); // This test has no receive function.
-        assertEq(manager.balanceOf(address(vault), 0), 0.1 ether);
+        assertEq(manager.balanceOf(address(vault), 0), 0.01 ether);
         vault.collect(key.currency0, bob);
-        assertEq(bob.balance, 10 ether);
+        assertEq(bob.balance, 1 ether);
     }
 
     function test_collectionAuthorizationFollowsOwnership() public {
@@ -184,9 +194,9 @@ contract I01_FeeClaimsTest is SetupHook {
         vault.collect(currency0, alice);
         hook.transferOwnership(alice);
         vm.expectRevert(FeeVault.Unauthorized.selector);
-        vault.collect(currency0, bob);
+        vault.collect(currency1, bob);
         vm.prank(alice);
-        vault.collect(currency0, bob);
+        vault.collect(currency1, bob);
         assertEq(token0.balanceOf(bob), 110 ether);
     }
 
@@ -202,10 +212,10 @@ contract I01_FeeClaimsTest is SetupHook {
     }
 
     function test_emptyAndRepeatedCollection() public {
-        vault.collect(currency0, bob);
+        vault.collect(currency1, bob);
         _fill(_create(true, 10 ether));
-        vault.collect(currency0, bob);
-        vault.collect(currency0, bob);
+        vault.collect(currency1, bob);
+        vault.collect(currency1, bob);
         assertEq(token0.balanceOf(bob), 110 ether);
     }
 }

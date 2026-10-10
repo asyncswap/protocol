@@ -124,24 +124,29 @@ forge verify-contract \
 
 ### Protocol fee claims
 
-The production fee rate remains zero. If a future hook implementation charges fees,
-creation escrows the full input as PoolManager ERC-6909 claims in the hook.
-Only a successful fill deducts the fee: the filler receives input minus the fee,
-and fee claims are minted to `hook.feeVault()`. The maker receives the full agreed
-output. Cancellation refunds the entire input; failed fills earn no fee.
-`OrderFeeAccrued` records the fee, and `AsyncOrderFilled.amountIn` records the net
-input paid to the filler.
+The protocol takes 0.2% of gross **output** only on a successful fill. The stored
+and signed `amountOutMin` is the maker's **net minimum after fees**. For a fill of
+100 USDC, the maker receives 99.8 USDC and the vault earns 0.2 USDC. The filler
+receives the entire input deposit. Creation charges no fee; cancellation returns
+all input.
+
+`calculatePoolFee(poolFee, netOutput)` returns `netOutput / 499` (integer division).
+The filler pays `grossOutput = netOutput + fee`; this guarantees
+`fee == floor(grossOutput / 500)` and the exact signed net receipt. Token-unit fees
+round down. Router approvals, native deposits and `maxPrice` cover gross output.
+
+Input claims remain in the hook until fill/cancel. On fill the hook settles gross
+output, pays the maker the net amount and mints output-currency fee claims to
+`hook.feeVault()`. `AsyncOrderFilled` reports full input and net output;
+`OrderFeeAccrued` records the output-currency fee separately.
 
 The current `hook.owner()` can call `FeeVault.collect(currency, recipient)` to
-redeem that currency's entire fee balance as native ETH or ERC-20 tokens. No
-PoolManager approval is needed. Ownership transfers also transfer collection
-authority. Collection burns only the vault's claims and cannot redeem the hook's
-open-order claims. `PoolManager.balanceOf(vault, currency.toId())` reports available
-fees, and `FeesCollected` records withdrawals. The hook's `sweep` remains for raw
-donations/stranded balances.
+redeem that currency's fee claims. Ownership transfers also transfer collection
+authority. Collection cannot redeem the hook's open-order claims. Available fees
+are `PoolManager.balanceOf(vault, currency.toId())`; `FeesCollected` records
+withdrawals. The hook's `sweep` remains for raw donations/stranded balances.
 
-The hook constructor deploys its vault automatically. This change requires a new
-hook deployment and a newly mined salt; existing deployed hooks are unaffected.
-Nonzero fees are tested with `FeeTestHook` in `test/audit/I01_FeeClaims.t.sol`;
-activating a real fee rate remains a separate change requiring frontend quoting
-and signed-order review.
+The hook constructor deploys its vault automatically. This requires a new hook
+and newly mined salt; existing deployments are unaffected. Regression tests cover
+ERC-20/native output, cancellation, access control, failed fills and collection,
+rounding, and the production 0.2% rate.

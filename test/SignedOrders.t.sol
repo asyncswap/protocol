@@ -171,7 +171,7 @@ contract SignedOrdersTest is SetupHook {
         uint256 makerOutBefore = token1.balanceOf(maker);
 
         vm.startPrank(bob);
-        token1.approve(address(router), AMOUNT_OUT_MIN);
+        token1.approve(address(router), type(uint256).max);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 

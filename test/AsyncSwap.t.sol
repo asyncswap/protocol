@@ -53,7 +53,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, amountOutMin);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order,
             abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
@@ -77,7 +77,7 @@ contract AsyncSwapTest is SetupHook {
 
         // Maker submits.
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order,
             abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
@@ -94,7 +94,7 @@ contract AsyncSwapTest is SetupHook {
 
         // Bob fills — must pay amountOutMin of token1 (the maker's output side).
         vm.startPrank(bob);
-        token1.approve(address(router), amountOutMin);
+        token1.approve(address(router), type(uint256).max);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
@@ -108,14 +108,16 @@ contract AsyncSwapTest is SetupHook {
         assertEq(manager.balanceOf(alice, currency1.toId()), 0, "maker has no leftover 6909 of currency1");
         // Filler received amountIn of real token0 in exchange.
         assertEq(token0.balanceOf(bob) - bobToken0Before, amountIn, "filler got real token0");
-        assertEq(bobToken1Before - token1.balanceOf(bob), amountOutMin, "filler paid token1");
+        assertEq(
+            bobToken1Before - token1.balanceOf(bob), amountOutMin + uint256(amountOutMin) / 499, "filler paid token1"
+        );
         assertEq(aliceToken0Before, token0.balanceOf(alice), "maker token0 unchanged post-fill");
     }
 
     function test_fill_revertsWhenOrderMissing() public {
         AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 1 ether);
         vm.startPrank(bob);
-        token1.approve(address(router), 1 ether);
+        token1.approve(address(router), type(uint256).max);
         // Router is alice's executor (topUp grants it), but the order itself
         // was never created — fall through to OrderNotFound.
         vm.expectRevert(AsyncFiller.OrderNotFound.selector);
@@ -130,7 +132,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -150,7 +152,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -172,7 +174,7 @@ contract AsyncSwapTest is SetupHook {
         uint256 aliceToken0Before = token0.balanceOf(alice);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -204,7 +206,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, false, amountIn, amountOutMin);
 
         vm.startPrank(alice);
-        token1.approve(address(router), amountIn);
+        token1.approve(address(router), type(uint256).max);
         router.swap(
             order,
             abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
@@ -218,14 +220,16 @@ contract AsyncSwapTest is SetupHook {
         uint256 aliceToken0Before = token0.balanceOf(alice);
 
         vm.startPrank(bob);
-        token0.approve(address(router), amountOutMin);
+        token0.approve(address(router), type(uint256).max);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Maker received real currency0 (the maker's chosen output); filler paid currency0 and
         // received currency1 (the maker's input).
         assertEq(token0.balanceOf(alice) - aliceToken0Before, amountOutMin, "maker received real token0");
-        assertEq(bobToken0Before - token0.balanceOf(bob), amountOutMin, "filler paid token0");
+        assertEq(
+            bobToken0Before - token0.balanceOf(bob), amountOutMin + uint256(amountOutMin) / 499, "filler paid token0"
+        );
         assertEq(token1.balanceOf(bob) - bobToken1Before, amountIn, "filler received token1");
     }
 
@@ -237,11 +241,11 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory o2 = _orderFromMaker(alice, true, 0.5 ether, 0.45 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), 1 ether);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             o1, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
-        token0.approve(address(router), 0.5 ether);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             o2, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.45 ether}))
         );
@@ -262,11 +266,11 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, 1 ether, 0.9 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), 1 ether);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
-        token0.approve(address(router), 1 ether);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -291,7 +295,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.8 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.8 ether}))
         );
@@ -303,12 +307,14 @@ contract AsyncSwapTest is SetupHook {
         uint256 bobToken1Before = token1.balanceOf(bob);
         uint256 aliceToken1Before = token1.balanceOf(alice);
         vm.startPrank(bob);
-        token1.approve(address(router), 1.1 ether);
+        token1.approve(address(router), type(uint256).max);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Filler paid the *updated* 1.1 ether, not the original 0.8 ether.
-        assertEq(bobToken1Before - token1.balanceOf(bob), 1.1 ether, "filler paid updated price");
+        assertEq(
+            bobToken1Before - token1.balanceOf(bob), 1.1 ether + uint256(1.1 ether) / 499, "filler paid updated price"
+        );
         assertEq(token1.balanceOf(alice) - aliceToken1Before, 1.1 ether, "maker received updated price");
     }
 
@@ -319,7 +325,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -329,7 +335,7 @@ contract AsyncSwapTest is SetupHook {
 
         // Now Bob tries to fill — order is gone.
         vm.startPrank(bob);
-        token1.approve(address(router), 0.9 ether);
+        token1.approve(address(router), type(uint256).max);
         vm.expectRevert(AsyncFiller.OrderNotFound.selector);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
@@ -340,7 +346,7 @@ contract AsyncSwapTest is SetupHook {
         AsyncOrder memory order = _orderFromMaker(alice, true, amountIn, 0.9 ether);
 
         vm.startPrank(alice);
-        token0.approve(address(router), amountIn);
+        token0.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -349,7 +355,7 @@ contract AsyncSwapTest is SetupHook {
         order = _withAssignedSalt(order);
 
         vm.startPrank(bob);
-        token1.approve(address(router), 0.9 ether);
+        token1.approve(address(router), type(uint256).max);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 

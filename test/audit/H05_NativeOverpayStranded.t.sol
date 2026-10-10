@@ -97,7 +97,7 @@ contract H05_NativeOverpayStrandedTest is Test {
     {
         order = _order(alice, false, amountIn, amountOutMin);
         vm.startPrank(alice);
-        erc20.approve(address(router), amountIn);
+        erc20.approve(address(router), type(uint256).max);
         router.swap(
             order,
             abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
@@ -161,8 +161,8 @@ contract H05_NativeOverpayStrandedTest is Test {
         uint256 makerBefore = alice.balance;
         uint256 tokensBefore = erc20.balanceOf(bob);
         vm.prank(bob);
-        router.fillOrder{value: 0.6 ether}(order, 1 ether, "");
-        assertEq(fillerBefore - bob.balance, 0.6 ether, "filler pays live price");
+        router.fillOrder{value: 0.6 ether + uint256(0.6 ether) / 499}(order, 1 ether, "");
+        assertEq(fillerBefore - bob.balance, 0.6 ether + uint256(0.6 ether) / 499, "filler pays live price");
         assertEq(alice.balance - makerBefore, 0.6 ether, "maker receives live price");
         assertEq(erc20.balanceOf(bob) - tokensBefore, 1 ether, "filler receives input");
         assertEq(address(hook).balance, 0, "no stranded ETH");
@@ -176,7 +176,7 @@ contract H05_NativeOverpayStrandedTest is Test {
         uint256 fillerBefore = bob.balance;
         vm.prank(bob);
         vm.expectRevert("Price exceeds maxPrice");
-        router.fillOrder{value: 1 ether}(order, 0.6 ether, "");
+        router.fillOrder{value: 1 ether + uint256(1 ether) / 499}(order, 0.6 ether, "");
         assertEq(bob.balance, fillerBefore);
         assertEq(address(hook).balance, 0);
         (uint256 remaining,) = hook.asyncOrderInfo(poolId, _orderIdFor(alice, false, order.salt));
@@ -187,7 +187,7 @@ contract H05_NativeOverpayStrandedTest is Test {
         AsyncOrder memory order = _createNativeOutputOrder(1 ether, 0.9 ether);
         uint256 makerBefore = alice.balance;
         vm.prank(bob);
-        router.fillOrder{value: 0.9 ether}(order, 0.9 ether, "");
+        router.fillOrder{value: 0.9 ether + uint256(0.9 ether) / 499}(order, 0.9 ether + uint256(0.9 ether) / 499, "");
         assertEq(alice.balance - makerBefore, 0.9 ether);
         assertEq(address(hook).balance, 0);
         assertEq(address(router).balance, 0);
@@ -205,7 +205,7 @@ contract H05_NativeOverpayStrandedTest is Test {
         assertEq(collector.balance, 0.4 ether);
         assertEq(address(hook).balance, 0);
         vm.prank(bob);
-        router.fillOrder{value: 0.9 ether}(order, 0.9 ether, "");
+        router.fillOrder{value: 0.9 ether + uint256(0.9 ether) / 499}(order, 0.9 ether + uint256(0.9 ether) / 499, "");
     }
 
     function test_L02_nativeInput_rejectsMismatchedOwner() public {

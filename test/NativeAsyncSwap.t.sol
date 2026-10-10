@@ -142,12 +142,12 @@ contract NativeAsyncSwapTest is Test {
 
         // Bob fills: ERC20 output side, so he approves the Router to pull TST.
         vm.startPrank(bob);
-        erc20.approve(address(router), 0.95 ether);
+        erc20.approve(address(router), type(uint256).max);
         router.fillOrder(order, type(uint256).max, "");
         vm.stopPrank();
 
         // Bob: -0.95 TST, +1 ETH. Alice: +0.95 TST, -1 ETH (already paid).
-        assertEq(bobErc20Before - erc20.balanceOf(bob), 0.95 ether, "filler paid TST");
+        assertEq(bobErc20Before - erc20.balanceOf(bob), 0.95 ether + uint256(0.95 ether) / 499, "filler paid TST");
         assertEq(bob.balance - bobEthBefore, 1 ether, "filler received real ETH");
         assertEq(erc20.balanceOf(alice) - aliceErc20Before, 0.95 ether, "maker received real TST");
     }
@@ -159,7 +159,7 @@ contract NativeAsyncSwapTest is Test {
         AsyncOrder memory order = _order(alice, false, 1 ether, 0.9 ether);
 
         vm.startPrank(alice);
-        erc20.approve(address(router), 1 ether);
+        erc20.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -178,7 +178,7 @@ contract NativeAsyncSwapTest is Test {
         AsyncOrder memory order = _order(alice, false, 1 ether, 0.9 ether);
 
         vm.startPrank(alice);
-        erc20.approve(address(router), 1 ether);
+        erc20.approve(address(router), type(uint256).max);
         router.swap(
             order, abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: 0.9 ether}))
         );
@@ -193,10 +193,10 @@ contract NativeAsyncSwapTest is Test {
         // Bob fills with native ETH output side — pays 0.9 ETH, receives 1 TST.
         // Router.fillOrder must accept msg.value here.
         vm.startPrank(bob);
-        router.fillOrder{value: 0.9 ether}(order, type(uint256).max, "");
+        router.fillOrder{value: 0.9 ether + uint256(0.9 ether) / 499}(order, type(uint256).max, "");
         vm.stopPrank();
 
-        assertEq(bobEthBefore - bob.balance, 0.9 ether, "filler paid ETH");
+        assertEq(bobEthBefore - bob.balance, 0.9 ether + uint256(0.9 ether) / 499, "filler paid ETH");
         assertEq(erc20.balanceOf(bob) - bobErc20Before, 1 ether, "filler received TST");
         assertEq(alice.balance - aliceEthBefore, 0.9 ether, "maker received ETH");
     }

@@ -123,13 +123,13 @@ contract Router is EIP712 {
         POOLMANAGER.unlock(abi.encode(SwapCallback({action: ActionType.Swap, order: order})));
     }
 
-    /// @notice Filler completes an open order. Caller must hold sufficient `amountOutMin` of the
-    ///         maker's output currency. For ERC20 output, the caller must approve the router for
-    ///         that amount. For native output, `msg.value` must equal the live stored price;
+    /// @notice Filler completes an open order, paying the maker's net minimum plus the protocol fee.
+    ///         For ERC20 output, approve the router for that gross amount. For native output,
+    ///         `msg.value` must equal the live net price plus the protocol fee;
     ///         a stale or excessive deposit reverts rather than stranding the difference.
     ///         Native output is currency1 for zeroForOne, otherwise currency0.
     ///
-    ///         `maxPrice` caps the live price the router will pay for the maker's output —
+    ///         `maxPrice` caps total output paid, including the fee —
     ///         it protects fillers from a maker who front-runs them with `updatePrice` to
     ///         bump the order's stored price. Pass `type(uint256).max` to disable the check.
     function fillOrder(AsyncOrder calldata order, uint256 maxPrice, bytes calldata) external payable {
@@ -146,8 +146,9 @@ contract Router is EIP712 {
         Currency output = order.zeroForOne ? order.key.currency1 : order.key.currency0;
         if (output.isAddressZero()) {
             // The caller's struct price may be stale after a maker reprices. Match the
-            // amount actually settled, so every forwarded wei is paid to the maker.
+            // total amount settled: maker net output plus protocol fee.
             (, uint256 livePrice) = HOOK.asyncOrderInfo(order.key.toId(), _orderId(order));
+            livePrice += HOOK.calculatePoolFee(order.key.fee, livePrice);
             require(msg.value == livePrice, "msg.value != livePrice");
             (bool ok,) = address(HOOK).call{value: msg.value}("");
             require(ok, "Native output transfer to hook failed");
@@ -248,6 +249,7 @@ contract Router is EIP712 {
             Currency output = orderData.order.zeroForOne ? orderData.order.key.currency1 : orderData.order.key.currency0;
             bytes32 id = _orderId(orderData.order);
             (, uint256 livePrice) = HOOK.asyncOrderInfo(orderData.order.key.toId(), id);
+            livePrice += HOOK.calculatePoolFee(orderData.order.key.fee, livePrice);
             uint256 maxPrice;
             assembly ("memory-safe") {
                 maxPrice := tload(MAX_PRICE_LOCATION)

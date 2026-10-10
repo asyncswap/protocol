@@ -47,7 +47,7 @@ contract MaliciousActor {
     }
 
     function approveRouter(uint256 amt) external {
-        erc20.approve(address(router), amt);
+        erc20.approve(address(router), type(uint256).max);
     }
 
     /// Submit a native-INPUT order (zeroForOne=true): deposit `amountIn` ETH, ask `amountOutMin` TST.
@@ -197,7 +197,7 @@ contract H06_NativeReentrancyDefenseTest is Test {
 
         // Honest fill; the malicious maker's receive() will try to re-enter.
         vm.prank(bob);
-        router.fillOrder{value: amountOutMin}(order, type(uint256).max, "");
+        router.fillOrder{value: amountOutMin + uint256(amountOutMin) / 499}(order, type(uint256).max, "");
 
         emit log_named_uint("reentry attempts", maker.reentryAttempts());
         emit log_named_uint("reentry successes", maker.reentrySuccesses());
@@ -283,7 +283,7 @@ contract H06_NativeReentrancyDefenseTest is Test {
         });
 
         vm.startPrank(alice);
-        erc20.approve(address(router), amountIn);
+        erc20.approve(address(router), type(uint256).max);
         router.swap(
             order,
             abi.encode(AsyncSwap.UserParams({user: alice, executor: address(router), amountOutMin: amountOutMin}))
@@ -293,7 +293,7 @@ contract H06_NativeReentrancyDefenseTest is Test {
 
         uint256 aliceEthBefore = alice.balance;
         vm.prank(bob);
-        router.fillOrder{value: amountOutMin}(order, type(uint256).max, "");
+        router.fillOrder{value: amountOutMin + uint256(amountOutMin) / 499}(order, type(uint256).max, "");
 
         emit log_named_uint("maker ETH received", alice.balance - aliceEthBefore);
         assertEq(alice.balance - aliceEthBefore, amountOutMin, "honest fill pays maker exactly the live price");

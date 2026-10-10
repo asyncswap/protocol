@@ -185,8 +185,9 @@ contract AsyncSwap is BaseHook, EIP712 {
         return 0;
     }
 
-    function calculatePoolFee(uint24, uint256) public pure virtual returns (uint256) {
-        return 0;
+    /// @notice Fee added to the maker's net output: 0.2% of gross output, rounded down.
+    function calculatePoolFee(uint24, uint256 amount) public pure virtual returns (uint256) {
+        return amount / 499;
     }
 
     /// @notice Fill `order` in full. Must be called from an authorized executor (router) that has
@@ -204,13 +205,14 @@ contract AsyncSwap is BaseHook, EIP712 {
             uint256 pending;
             assembly ("memory-safe") { pending := tload(PENDING_NATIVE_DEPOSIT_SLOT) }
             (, uint256 amountOutMin) = (this.asyncOrderInfo(order.key.toId(), id));
+            amountOutMin += calculatePoolFee(order.key.fee, amountOutMin);
             if (pending < amountOutMin) revert UnaccountedNativeOutput();
             assembly ("memory-safe") {
                 tstore(PENDING_NATIVE_DEPOSIT_SLOT, sub(pending, amountOutMin))
             }
         }
         AsyncFiller.State storage state = asyncOrders[order.key.toId()];
-        uint256 fee = calculatePoolFee(order.key.fee, state.orders[id].amountIn);
+        uint256 fee = calculatePoolFee(order.key.fee, state.orders[id].amountOutMin);
         state.fill(order, id, address(this), msg.sender, filler, address(feeVault), fee);
     }
 
