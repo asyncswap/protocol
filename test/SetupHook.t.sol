@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
+import {ISignatureTransfer} from "@async-swap/interfaces/ISignatureTransfer.sol";
+import {Permit2Bytecode} from "./utils/Permit2Bytecode.sol";
 import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {Router} from "@async-swap/Router.sol";
 import {Test} from "forge-std/Test.sol";
@@ -72,7 +74,7 @@ contract SetupHook is Test {
     }
 
     function _deployRouter() internal {
-        router = new Router(manager, hook);
+        router = new Router(manager, hook, ISignatureTransfer(Permit2Bytecode.PERMIT2));
     }
 
     function _createKey() internal {

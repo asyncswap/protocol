@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
+import {ISignatureTransfer} from "@async-swap/interfaces/ISignatureTransfer.sol";
+import {Permit2Bytecode} from "../utils/Permit2Bytecode.sol";
 import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {Router} from "@async-swap/Router.sol";
@@ -41,7 +43,7 @@ contract H03_StrandedEthTest is Test {
         );
         deployCodeTo("AsyncSwap.sol", abi.encode(manager), address(flags));
         hook = AsyncSwap(payable(address(flags)));
-        router = new Router(manager, hook);
+        router = new Router(manager, hook, ISignatureTransfer(Permit2Bytecode.PERMIT2));
 
         key = PoolKey({
             currency0: currency0,

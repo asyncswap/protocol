@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {ISignatureTransfer} from "@async-swap/interfaces/ISignatureTransfer.sol";
+import {OrderSignatures} from "@async-swap/libraries/OrderSignatures.sol";
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
 import {IPoolManager, SwapParams} from "v4-core/interfaces/IPoolManager.sol";
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
@@ -15,7 +19,11 @@ import {AsyncSwap} from "src/AsyncSwap.sol";
 /// @notice Thin entrypoint for makers (`swap`), fillers (`fillOrder`), and makers cancelling orders
 ///         (`cancelOrder`). All three actions go through `IPoolManager.unlock` so the hook can
 ///         operate on PM debts.
-contract Router {
+///
+///         Gasless variants (`swapWithSig`, `cancelWithSig`) take the maker's EIP-712 signature so a
+///         relayer can submit. Signed creates pull input through Permit2 with the order as witness,
+///         so the wallet shows the full order (tokens, amounts, pool) in one readable message.
+contract Router is EIP712 {
     using CurrencySettler for Currency;
     using CurrencyLibrary for Currency;
     using SafeCast for *;
@@ -23,6 +31,7 @@ contract Router {
 
     IPoolManager immutable POOLMANAGER;
     AsyncSwap immutable HOOK;
+    ISignatureTransfer public immutable PERMIT2;
 
     /// keccak256("Router.ActionType") - 1
     bytes32 constant ACTION_LOCATION = 0xf3b150ebf41dad0872df6788629edb438733cb4a5c9ea779b1b1f3614faffc69;
@@ -36,7 +45,8 @@ contract Router {
     enum ActionType {
         Swap,
         FillOrder,
-        Cancel
+        Cancel,
+        SwapWithSig
     }
 
     struct SwapCallback {
@@ -44,9 +54,30 @@ contract Router {
         AsyncOrder order;
     }
 
-    constructor(IPoolManager _poolManager, AsyncSwap _hook) {
+    /// @notice Permit2 signature + nonce/deadline for a signed create.
+    struct PermitData {
+        uint256 nonce;
+        uint256 deadline;
+        bytes signature;
+    }
+
+    /// @notice Optional signed `SetExecutor` grant, submitted to the hook ahead of the maker's first
+    ///         gasless order on a pool. Leave `signature` empty when the Router is already authorized.
+    struct ExecutorGrant {
+        uint256 nonce;
+        uint256 deadline;
+        bytes signature;
+    }
+
+    error SignatureExpired();
+    error InvalidSignature();
+
+    constructor(IPoolManager _poolManager, AsyncSwap _hook, ISignatureTransfer _permit2)
+        EIP712("AsyncSwap Router", "1")
+    {
         POOLMANAGER = _poolManager;
         HOOK = _hook;
+        PERMIT2 = _permit2;
     }
 
     modifier onlyPoolManager() {
@@ -121,6 +152,45 @@ contract Router {
         POOLMANAGER.unlock(abi.encode(SwapCallback({action: ActionType.FillOrder, order: order})));
     }
 
+    /// @notice Relayer submits a maker's signed order. The maker signs a Permit2
+    ///         `PermitWitnessTransferFrom` for `amountIn` of the input token with `spender = Router`
+    ///         and the `AsyncOrder` witness (see `OrderSignatures`), so one signature both approves
+    ///         the transfer and commits to the order. Input then lands in the hook escrow exactly as
+    ///         in `swap`. Requires a prior Permit2 approval of the input token; native input is not
+    ///         supported (use `swap`).
+    function swapWithSig(AsyncOrder calldata order, PermitData calldata permit, ExecutorGrant calldata grant) external {
+        Currency input = order.zeroForOne ? order.key.currency0 : order.key.currency1;
+        require(!input.isAddressZero(), "Native input needs swap()");
+        if (grant.signature.length != 0 && !HOOK.isExecutor(order.key.toId(), order.owner, address(this))) {
+            HOOK.setExecutorWithSig(
+                order.key, order.owner, address(this), true, grant.nonce, grant.deadline, grant.signature
+            );
+        }
+        address onBehalf = address(this);
+        address maker = order.owner;
+        assembly ("memory-safe") {
+            tstore(USER_LOCATION, maker)
+            tstore(ASYNC_FILLER_LOCATION, onBehalf)
+        }
+        POOLMANAGER.unlock(abi.encode(SwapCallback({action: ActionType.SwapWithSig, order: order}), permit));
+    }
+
+    /// @notice Relayer submits a maker's signed EIP-712 `CancelOrder`. Input returns to the maker.
+    function cancelWithSig(AsyncOrder calldata order, uint256 deadline, bytes calldata signature) external {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        bytes32 id = _orderId(order);
+        (uint256 amountIn,) = HOOK.asyncOrderInfo(order.key.toId(), id);
+        bytes32 digest = _hashTypedDataV4(OrderSignatures.hashCancel(order, id, amountIn, deadline));
+        if (!SignatureChecker.isValidSignatureNow(order.owner, digest, signature)) revert InvalidSignature();
+        POOLMANAGER.unlock(abi.encode(SwapCallback({action: ActionType.Cancel, order: order})));
+    }
+
+    /// @notice EIP-712 domain separator for Router-verified signatures (`CancelOrder`).
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
     /// @notice Maker cancels an unfilled order and reclaims their reserved input.
     function cancelOrder(AsyncOrder calldata order) external {
         require(msg.sender == order.owner, "Only owner can cancel");
@@ -145,7 +215,7 @@ contract Router {
 
         SwapCallback memory orderData = abi.decode(data, (SwapCallback));
 
-        if (action == uint8(ActionType.Swap)) {
+        if (action == uint8(ActionType.Swap) || action == uint8(ActionType.SwapWithSig)) {
             // Trigger the hook via PM.swap; hook.beforeSwap pulls the maker's input as 6909.
             POOLMANAGER.swap(
                 orderData.order.key,
@@ -161,7 +231,12 @@ contract Router {
             // CurrencySettler.settle native branch sends from address(this) regardless
             // of the `payer` argument, so we still pass `user` for symmetry/logging.
             Currency input = orderData.order.zeroForOne ? orderData.order.key.currency0 : orderData.order.key.currency1;
-            input.settle(POOLMANAGER, user, orderData.order.amountIn, false);
+            if (action == uint8(ActionType.SwapWithSig)) {
+                (, PermitData memory permit) = abi.decode(data, (SwapCallback, PermitData));
+                _settleWithPermit(input, orderData.order, permit);
+            } else {
+                input.settle(POOLMANAGER, user, orderData.order.amountIn, false);
+            }
         } else if (action == uint8(ActionType.FillOrder)) {
             // Read the LIVE price from hook storage — the caller's `order.amountOutMin` may be
             // stale if the maker called updatePrice after submitting.
@@ -185,6 +260,25 @@ contract Router {
         }
 
         return "";
+    }
+
+    /// @dev Pays the maker's input into the PoolManager via Permit2. Permit2 verifies the maker's
+    ///      signature over the transfer AND the order witness, so a relayer cannot alter the order.
+    function _settleWithPermit(Currency input, AsyncOrder memory order, PermitData memory permit) private {
+        POOLMANAGER.sync(input);
+        PERMIT2.permitWitnessTransferFrom(
+            ISignatureTransfer.PermitTransferFrom({
+                permitted: ISignatureTransfer.TokenPermissions({token: Currency.unwrap(input), amount: order.amountIn}),
+                nonce: permit.nonce,
+                deadline: permit.deadline
+            }),
+            ISignatureTransfer.SignatureTransferDetails({to: address(POOLMANAGER), requestedAmount: order.amountIn}),
+            order.owner,
+            OrderSignatures.hashOrder(order),
+            OrderSignatures.PERMIT2_WITNESS_TYPE,
+            permit.signature
+        );
+        POOLMANAGER.settle();
     }
 
     /// @dev MUST match AsyncOrderLibrary.orderId exactly: (chainId, poolId, owner, zeroForOne, salt).

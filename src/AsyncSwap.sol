@@ -2,7 +2,10 @@
 pragma solidity 0.8.26;
 
 import {AsyncFiller} from "@async-swap/libraries/AsyncFiller.sol";
+import {OrderSignatures} from "@async-swap/libraries/OrderSignatures.sol";
 import {AsyncOrder, AsyncOrderLibrary} from "@async-swap/types/AsyncOrder.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
 import {IPoolManager, ModifyLiquidityParams, SwapParams} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
@@ -19,7 +22,10 @@ import {BaseHook} from "src/BaseHook.sol";
 /// @notice Uniswap v4 hook that converts an exact-input swap into an open async order: the maker
 ///         deposits their input via `_beforeSwap`, and a filler later settles by paying the maker's
 ///         limit-priced output. v1 is full-fill only.
-contract AsyncSwap is BaseHook {
+///
+///         Makers can also act by EIP-712 signature (`setExecutorWithSig`, `updatePriceWithSig`) so a
+///         relayer pays gas and the wallet shows a readable message. See `OrderSignatures` for types.
+contract AsyncSwap is BaseHook, EIP712 {
     using SafeCast for *;
     using CurrencySettler for Currency;
     using PoolIdLibrary for PoolKey;
@@ -31,6 +37,9 @@ contract AsyncSwap is BaseHook {
 
     /// @notice Protocol owner authorized to sweep accumulated fees / stranded balances.
     address public owner;
+
+    /// @notice Unordered nonces consumed by signed maker actions (`setExecutorWithSig`, `updatePriceWithSig`).
+    mapping(address maker => mapping(uint256 nonce => bool)) public nonceUsed;
 
     /// @notice Pool-level swap-event mirror; bytes32 poolId for indexer compatibility.
     /// @dev    See https://github.com/OpenZeppelin/uniswap-hooks BaseAsyncSwap for the source pattern.
@@ -48,12 +57,18 @@ contract AsyncSwap is BaseHook {
     error UnaccountedNativeOutput();
     error NotOwner();
     error ZeroAddress();
+    error SignatureExpired();
+    error InvalidSignature();
+    error NonceAlreadyUsed();
 
     /// @notice Emitted when ownership is transferred.
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /// @notice Emitted when the owner sweeps an accumulated balance.
     event Swept(Currency indexed currency, address indexed to, uint256 amount);
+
+    /// @notice Emitted when a maker burns a nonce, consumed or revoked.
+    event NonceInvalidated(address indexed maker, uint256 nonce);
 
     /// @notice Restricts a call to the protocol owner.
     modifier onlyOwner() {
@@ -80,7 +95,7 @@ contract AsyncSwap is BaseHook {
         uint256 amountOutMin;
     }
 
-    constructor(IPoolManager _poolManager) BaseHook(_poolManager) {
+    constructor(IPoolManager _poolManager) BaseHook(_poolManager) EIP712("AsyncSwap", "1") {
         owner = msg.sender;
         emit OwnershipTransferred(address(0), msg.sender);
     }
@@ -271,6 +286,74 @@ contract AsyncSwap is BaseHook {
     ///         on the maker's first swap. Pairs with `revokeExecutor` for rotation.
     function setExecutor(PoolId poolId, address executor, bool allow) external {
         asyncOrders[poolId].isExecutor[msg.sender][executor] = allow;
+    }
+
+    /// @notice Signed `setExecutor`: anyone may submit the maker's EIP-712 `SetExecutor` grant.
+    ///         Lets a relayer authorize the Router before the maker's first gasless order on a pool.
+    function setExecutorWithSig(
+        PoolKey calldata key,
+        address maker,
+        address executor,
+        bool allow,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verify(
+            maker,
+            OrderSignatures.hashSetExecutor(key, maker, executor, allow, nonce, deadline),
+            nonce,
+            deadline,
+            signature
+        );
+        asyncOrders[key.toId()].isExecutor[maker][executor] = allow;
+    }
+
+    /// @notice Signed `updatePrice`: anyone may submit the maker's EIP-712 `UpdatePrice` message.
+    function updatePriceWithSig(
+        AsyncOrder calldata order,
+        uint256 newAmountOutMin,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        PoolId poolId = order.key.toId();
+        bytes32 id = order.orderId();
+        uint256 amountIn = asyncOrders[poolId].orders[id].amountIn;
+        _verify(
+            order.owner,
+            OrderSignatures.hashUpdatePrice(order, id, amountIn, newAmountOutMin, nonce, deadline),
+            nonce,
+            deadline,
+            signature
+        );
+        asyncOrders[poolId].updatePrice(order, id, newAmountOutMin, order.owner);
+    }
+
+    /// @notice Revoke a signed action before a relayer submits it.
+    function invalidateNonce(uint256 nonce) external {
+        if (nonceUsed[msg.sender][nonce]) revert NonceAlreadyUsed();
+        nonceUsed[msg.sender][nonce] = true;
+        emit NonceInvalidated(msg.sender, nonce);
+    }
+
+    /// @notice EIP-712 domain separator for this hook's signed actions.
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
+    /// @dev Checks deadline, burns the nonce, then validates an EOA or ERC-1271 signature.
+    function _verify(address maker, bytes32 structHash, uint256 nonce, uint256 deadline, bytes calldata signature)
+        private
+    {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (nonceUsed[maker][nonce]) revert NonceAlreadyUsed();
+        nonceUsed[maker][nonce] = true;
+        emit NonceInvalidated(maker, nonce);
+        if (!SignatureChecker.isValidSignatureNow(maker, _hashTypedDataV4(structHash), signature)) {
+            revert InvalidSignature();
+        }
     }
 
     /// @notice Accept ETH transfers. The Router (or any caller paying for a native-output

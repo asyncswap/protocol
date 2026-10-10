@@ -18,6 +18,25 @@ Built around three contracts:
   updatePrice mechanics. Settles real tokens directly to the maker (no 6909
   withdrawal step required).
 
+## Signed maker actions
+
+Makers sign readable EIP-712 order fields, then submit the transaction with their
+own wallet and pay network gas. A separate relayer service is not required. Type strings live in
+`libraries/OrderSignatures.sol` and are pinned by `test/SignedOrders.t.sol`.
+
+| Action | Entry point | Signed type | EIP-712 domain |
+|---|---|---|---|
+| Create | `Router.swapWithSig(order, permit, grant)` | Permit2 `PermitWitnessTransferFrom` with `AsyncOrder` witness (`spender` = Router) | Permit2 |
+| First order on a pool | `grant` arg above, or `AsyncSwap.setExecutorWithSig` | `SetExecutor` | `AsyncSwap` v1 (hook) |
+| Reprice | `AsyncSwap.updatePriceWithSig` | `UpdatePrice` | `AsyncSwap` v1 (hook) |
+| Cancel | `Router.cancelWithSig` | `CancelOrder` | `AsyncSwap Router` v1 |
+
+- The maker approves Permit2 once per input token; subsequent creates use a signature followed by a transaction.
+  Native ETH input still goes through `swap`.
+- `SetExecutor` / `UpdatePrice` use unordered per-maker nonces (`nonceUsed`); revoke an unsent
+  signature with `invalidateNonce`. Create nonces are Permit2's. Cancel needs no nonce (it deletes the order).
+- Signatures from smart-contract wallets (ERC-1271) are accepted on the hook and Router paths.
+
 ## Deployments
 
 ### Unichain (chainId `130`)

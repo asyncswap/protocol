@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {ISignatureTransfer} from "@async-swap/interfaces/ISignatureTransfer.sol";
 import {FFIHelper} from "./FFIHelper.sol";
 import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {Router} from "@async-swap/Router.sol";
@@ -19,6 +20,8 @@ contract DeployHookScript is FFIHelper {
     /// @dev Top-byte prefix used to visually identify our hook (0x91...).
     uint160 internal constant HOOK_PREFIX = uint160(0x91) << 152;
     uint160 internal constant HOOK_PREFIX_MASK = uint160(0xFF) << 152;
+    /// @dev Canonical Permit2 (same address on every chain).
+    address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     function setUp() public {
         manager = IPoolManager(_getDeployedPoolManager());
@@ -50,7 +53,7 @@ contract DeployHookScript is FFIHelper {
         vm.startBroadcast(OWNER);
         hook = new AsyncSwap{salt: salt}(manager);
         require(address(hook) == predicted, "deployed hook address mismatch");
-        router = new Router(manager, hook);
+        router = new Router(manager, hook, ISignatureTransfer(PERMIT2));
         vm.stopBroadcast();
 
         _recordDeployments();
