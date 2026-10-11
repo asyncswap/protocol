@@ -21,6 +21,30 @@ Overlapping findings are merged under the higher severity. Unique findings from 
 
 ---
 
+## Local remediation verification — 2026-10-10
+
+The findings below preserve the original report. Current checkout status:
+
+| Finding | Current status / evidence |
+|---|---|
+| C-01 | Existing native-deposit protection retained; `C01_CommingledEscrowTest` passes. |
+| H-01 | Existing `maxPrice` cap retained; `H01_MakerFrontrunTest` passes. |
+| H-02 | Existing explicit executor authorization retained; `H02_ExecutorForgeryTest` passes. |
+| H-03 / L-03 | Existing exact native-input value check retained; `H03_StrandedEthTest` passes. |
+| H-04 | Existing `userData.amountOutMin` equality check retained; `H04_NatspecMismatchTest` passes. |
+| L-01 | `setExecutor(poolId, executor, false)` revokes authorization; `OwnerDirectCancelTest` covers recovery after revocation. Corrected a stale comment referring to nonexistent `revokeExecutor`. |
+| L-02 | Added `order.owner == msg.sender` and `userData.user == order.owner` guards to direct `Router.swap`. ERC-20 and native mismatches revert before deposit; new regression tests reproduce the missing checks before the fix. Signed creates continue to authenticate the maker by signature. |
+| I-01 | Fixed locally: full deposits stay in the hook until fill/cancel; successful fills alone mint output-currency fee claims to a dedicated `FeeVault`, redeemable by the current hook owner. Cancellation refunds the full deposit. Nonzero-fee ERC-20/native regressions cover collection, escrow conservation, cancellation, filling, and access control. The protocol takes 0.2% of gross output; signed minimum output is net after fees. |
+
+The supplemental [H-05 report](H05-native-overpay-stranded.md) now uses exact
+live-price native deposits rather than relying on owner sweeping. The H06 native
+reentrancy regression tests also pass. Full local suite: **53 passed**, including
+fuzzed native overpayments; `forge fmt --check` passes. These are regression checks
+against the listed findings, not a new comprehensive security audit. No deployment
+or commit was performed.
+
+---
+
 ## Findings
 
 ### [C-01] `AsyncFiller` commingles native escrow in `address(hook).balance` — any self-owned native-output order drains every wei in the hook
@@ -523,7 +547,7 @@ The NatSpec on `Router.swap` tells callers that `amountOutMin` and `nonce` are r
 
 **Expected Delta**: maker loses `amountIn − 1 wei`; filler gains the same at zero net cost.
 
-**PoC** — `[POC-PASS]`  Run: `forge test --match-contract H04_NatspecMismatchTest -vvvv`. 
+**PoC** — `[POC-PASS]`  Run: `forge test --match-contract H04_NatspecMismatchTest -vvvv`.
 
 ```solidity
 // SPDX-License-Identifier: UNLICENSED
@@ -649,4 +673,3 @@ Note: the *attacker-extractable* compounding of this stranded ETH is captured un
 
 **Severity**: Informational  **Confidence**: High  **Class**: DeltaAccounting
 **Location**: `AsyncSwap.sol:_beforeSwap`
-
