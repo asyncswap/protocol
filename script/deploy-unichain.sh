@@ -26,6 +26,11 @@ if [[ "$mode" != "dry-run" && "$mode" != "broadcast" ]]; then
   exit 2
 fi
 
+if [[ "$mode" == "broadcast" ]] && ! command -v python3 >/dev/null 2>&1; then
+  echo "Refusing deployment: python3 is required to sync confirmed receipts into the deployment registry." >&2
+  exit 1
+fi
+
 chain_id="$(cast chain-id --rpc-url "$RPC_URL")"
 if [[ "$chain_id" != "130" ]]; then
   echo "Refusing deployment: RPC returned chain ID $chain_id, expected Unichain 130." >&2
@@ -53,3 +58,10 @@ else
 fi
 
 forge "${forge_args[@]}"
+
+if [[ "$mode" == "broadcast" ]]; then
+  python3 "$ROOT_DIR/script/sync-deployment-record.py" \
+    --chain-id "$chain_id" \
+    --registry "$ROOT_DIR/deployments/$chain_id.json" \
+    --broadcast "$ROOT_DIR/broadcast/01_DeployHook.s.sol/$chain_id/run-latest.json"
+fi

@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ISignatureTransfer} from "@async-swap/interfaces/ISignatureTransfer.sol";
+import {UniswapAddresses} from "./config/UniswapAddresses.sol";
 import {FFIHelper} from "./FFIHelper.sol";
 import {AsyncSwap} from "@async-swap/AsyncSwap.sol";
 import {Router} from "@async-swap/Router.sol";
@@ -68,7 +69,12 @@ contract DeployHookScript is FFIHelper {
         uint256 deployBlock = block.number;
         _upsertEntry(
             block.chainid,
-            Entry({name: "PoolManager", addr: address(manager), startBlock: deployBlock, txHash: bytes32(0)})
+            Entry({
+                name: "PoolManager",
+                addr: address(manager),
+                startBlock: UniswapAddresses.poolManagerStartBlock(block.chainid),
+                txHash: bytes32(0)
+            })
         );
         _upsertEntry(
             block.chainid, Entry({name: "AsyncSwap", addr: address(hook), startBlock: deployBlock, txHash: bytes32(0)})
