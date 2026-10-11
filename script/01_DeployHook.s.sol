@@ -39,7 +39,7 @@ contract DeployHookScript is FFIHelper {
         Currency numeraire = Currency.wrap(vm.envAddress("USDC_ADDRESS"));
         require(Currency.unwrap(numeraire).code.length > 0, "USDC_ADDRESS must be a deployed token");
         bytes memory creationCode = type(AsyncSwap).creationCode;
-        bytes memory constructorArgs = abi.encode(address(manager), numeraire);
+        bytes memory constructorArgs = abi.encode(address(manager), numeraire, OWNER);
         bytes32 initCodeHash = keccak256(abi.encodePacked(creationCode, constructorArgs));
 
         bytes32 salt = _readSaltEnv();
@@ -57,8 +57,9 @@ contract DeployHookScript is FFIHelper {
         console.log("predicted hook address:", predicted);
 
         vm.startBroadcast(OWNER);
-        hook = new AsyncSwap{salt: salt}(manager, numeraire);
+        hook = new AsyncSwap{salt: salt}(manager, numeraire, OWNER);
         require(address(hook) == predicted, "deployed hook address mismatch");
+        require(hook.owner() == OWNER, "hook owner mismatch");
         router = new Router(manager, hook, ISignatureTransfer(PERMIT2));
         vm.stopBroadcast();
 

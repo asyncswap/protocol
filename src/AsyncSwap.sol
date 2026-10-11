@@ -111,12 +111,18 @@ contract AsyncSwap is BaseHook, EIP712 {
         uint256 amountOutMin;
     }
 
-    constructor(IPoolManager _poolManager, Currency _numeraire) BaseHook(_poolManager) EIP712("AsyncSwap", "1") {
+    /// @param _owner Explicit protocol owner. Not `msg.sender`: CREATE2 deployments run the
+    ///               constructor from the deterministic deployer, which could never act as owner.
+    constructor(IPoolManager _poolManager, Currency _numeraire, address _owner)
+        BaseHook(_poolManager)
+        EIP712("AsyncSwap", "1")
+    {
         if (Currency.unwrap(_numeraire).code.length == 0) revert InvalidNumeraire();
+        if (_owner == address(0)) revert ZeroAddress();
         numeraire = _numeraire;
-        owner = msg.sender;
+        owner = _owner;
         feeVault = new FeeVault(_poolManager);
-        emit OwnershipTransferred(address(0), msg.sender);
+        emit OwnershipTransferred(address(0), _owner);
     }
 
     /// @notice Start a two-step ownership transfer. The deployer (or a factory) should call this after

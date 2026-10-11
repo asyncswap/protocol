@@ -21,7 +21,7 @@ import {PoolIdLibrary} from "v4-core/types/PoolId.sol";
 
 /// @dev Only bypasses permission-address mining for constructor rejection tests.
 contract NumeraireConstructorHarness is AsyncSwap {
-    constructor(IPoolManager manager, Currency quote) AsyncSwap(manager, quote) {}
+    constructor(IPoolManager manager, Currency quote, address owner_) AsyncSwap(manager, quote, owner_) {}
 
     function validateHookAddress(BaseHook) internal pure override {}
 }
@@ -45,7 +45,7 @@ contract NumeraireTest is Test {
             Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
                 | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
-        deployCodeTo("AsyncSwap.sol", abi.encode(manager, Currency.wrap(address(usdc))), address(flags));
+        deployCodeTo("AsyncSwap.sol", abi.encode(manager, Currency.wrap(address(usdc)), address(this)), address(flags));
         hook = AsyncSwap(payable(address(flags)));
         router = new Router(manager, hook, ISignatureTransfer(Permit2Bytecode.PERMIT2));
     }
@@ -73,12 +73,26 @@ contract NumeraireTest is Test {
 
     function test_rejectZeroNumeraire() public {
         vm.expectRevert(AsyncSwap.InvalidNumeraire.selector);
-        new NumeraireConstructorHarness(manager, Currency.wrap(address(0)));
+        new NumeraireConstructorHarness(manager, Currency.wrap(address(0)), address(this));
     }
 
     function test_rejectNonContractNumeraire() public {
         vm.expectRevert(AsyncSwap.InvalidNumeraire.selector);
-        new NumeraireConstructorHarness(manager, Currency.wrap(makeAddr("not a token")));
+        new NumeraireConstructorHarness(manager, Currency.wrap(makeAddr("not a token")), address(this));
+    }
+
+    /// @dev CREATE2 deployments run the constructor from the deterministic deployer, so the owner
+    ///      must come from the argument, never from `msg.sender`.
+    function test_ownerIsExplicitArgumentNotDeployer() public {
+        address protocolOwner = makeAddr("protocol owner");
+        AsyncSwap h = new NumeraireConstructorHarness(manager, Currency.wrap(address(usdc)), protocolOwner);
+        assertEq(h.owner(), protocolOwner);
+        assertTrue(h.owner() != address(this));
+    }
+
+    function test_rejectZeroOwner() public {
+        vm.expectRevert(AsyncSwap.ZeroAddress.selector);
+        new NumeraireConstructorHarness(manager, Currency.wrap(address(usdc)), address(0));
     }
 
     function test_acceptNumeraireOnEitherSortedSide() public {

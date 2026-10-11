@@ -86,6 +86,6 @@ The pool script persists the `PoolKey` in `deployments/130/130-pool.json`. This 
 ## Post-deployment checks
 
 1. Confirm the recorded hook and Router addresses match the broadcast receipts and the hook's immutable `numeraire()` is the verified USDC address.
-2. Verify both contracts on Uniscan using the constructor argument forms in the protocol README.
+2. Verify both contracts on Uniscan with the `foundry.toml` compiler settings (solc 0.8.26, optimizer on, 1,000,000 runs). Constructor arguments: `AsyncSwap(poolManager, usdc, owner)` and `Router(poolManager, hook, permit2)`.
 3. Initialize only the intended USDC pair(s), then update the app's hook/router addresses and the indexer's start block.
 4. Publish ERC-7730 metadata only after the final addresses and chain bindings are recorded.

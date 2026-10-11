@@ -16,6 +16,7 @@ No critical or high-severity issues were found, and nothing puts open-order escr
 | ID | Title | Severity | Status |
 |----|-------|----------|--------|
 | M-01 | Anyone can steal ERC20 tokens sitting in the hook through `executeOrder` | Medium | ✅ Fixed |
+| M-02 | Scripted CREATE2 deploy makes the deterministic deployer the hook owner | Medium | ✅ Fixed |
 | L-01 | Anyone can create orders that appear to belong to someone else | Low | ✅ Fixed |
 | L-02 | A signed `CancelOrder` can be replayed on a new order with the same ID | Low | ✅ Fixed |
 | L-03 | Tokens that don't return a bool can't be traded | Low | ✅ Fixed |
@@ -27,7 +28,7 @@ No critical or high-severity issues were found, and nothing puts open-order escr
 |----------|-------|
 | Critical | 0 |
 | High | 0 |
-| Medium | 1 |
+| Medium | 2 |
 | Low | 3 |
 | Informational | 3 |
 
@@ -158,6 +159,40 @@ Never let the hook spend its own ERC20 balance. The executor pays the filler's t
 **Verification:** every existing test suite passes. The PoC now reverts: the PoolManager's `take` fails because the hook never paid in. The Router change was applied together with the safe-transfer change from L-03 (`safeTransferFrom` instead of `assert(transferFrom(...))`).
 
 **Alternative:** restrict `executeOrder` callers to a trusted Router address set at deployment. This works only if the Router is the trusted funding path. A balance check by itself is not enough unless it is tied to a trusted transfer.
+
+---
+
+### [M-02] Scripted CREATE2 deploy makes the deterministic deployer the hook owner
+
+**Location**: `src/AsyncSwap.sol` constructor, `script/01_DeployHook.s.sol`
+**Found**: during deployment preparation, after the initial review
+
+#### Description
+
+The constructor set `owner = msg.sender`. The deploy script creates the hook with `new AsyncSwap{salt: salt}(...)` inside `vm.startBroadcast(OWNER)`. Foundry sends salted creations through the deterministic CREATE2 deployer (`0x4e59b44847b379578588920cA78FbF26c0B4956C`), so that contract runs the constructor and becomes `owner`. A probe script confirmed it: inside a broadcast, the constructor's `msg.sender` was `0x4e59…956C`.
+
+#### Impact
+
+The CREATE2 deployer cannot make arbitrary calls. A freshly deployed hook would therefore have an owner that can never call `sweep`, `FeeVault.collect` or `transferOwnership`, so protocol fees would be locked forever. The currently live Unichain hook predates the `owner` logic and is not affected.
+
+#### Fix (applied)
+
+The constructor takes the owner explicitly and rejects `address(0)`. The deploy script passes `OWNER` (also included in the init-code hash used for salt mining) and asserts `hook.owner() == OWNER` after deploying.
+
+```diff
+-    constructor(IPoolManager _poolManager, Currency _numeraire) BaseHook(_poolManager) EIP712("AsyncSwap", "1") {
++    constructor(IPoolManager _poolManager, Currency _numeraire, address _owner)
++        BaseHook(_poolManager)
++        EIP712("AsyncSwap", "1")
++    {
+         if (Currency.unwrap(_numeraire).code.length == 0) revert InvalidNumeraire();
++        if (_owner == address(0)) revert ZeroAddress();
+         numeraire = _numeraire;
+-        owner = msg.sender;
++        owner = _owner;
+```
+
+Regression tests: `test_ownerIsExplicitArgumentNotDeployer` and `test_rejectZeroOwner` in `test/Numeraire.t.sol`.
 
 ---
 
@@ -348,6 +383,7 @@ Because it rounds down, orders with `amountOutMin < 499` base units pay no fee. 
 Each of these fails on `760699a` and passes with the fixes.
 
 - **M-01:** `test/audit/SR_M01_ERC20StrandedDrain.t.sol`: a self-authorized executor's drain attempt reverts.
+- **M-02:** `test_ownerIsExplicitArgumentNotDeployer` and `test_rejectZeroOwner` in `test/Numeraire.t.sol`: the owner comes from the constructor argument, never from the deployer.
 - **L-01:** `test/audit/SR_L01_OrderSpoofing.t.sol`: a direct `PoolManager.swap` with `user = victim` from a non-executor reverts with `NotAuthorizedExecutor`.
 - **L-02:** `test_cancelWithSig_rejectsReplayOnRecurringOrderId` in `test/SignedOrders.t.sol`: replaying a used `CancelOrder` signature on a recurring order ID reverts with `NonceAlreadyUsed`.
 - **L-03:** `test/audit/SR_L03_NoReturnToken.t.sol`: create, cancel and fill all work with a token whose `transfer`/`transferFrom` return no data.

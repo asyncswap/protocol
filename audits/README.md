@@ -46,6 +46,7 @@ Each report's IDs are its own (lee-audit L-01 and claude-audit.md L-01 are diffe
 | ID | Severity | Finding | Status | Evidence |
 |----|----------|---------|--------|----------|
 | M-01 | Medium | Anyone can steal ERC20 sitting in the hook through `executeOrder` | ✅ Fixed | ERC20 output is paid into the PoolManager and credited to the hook with `settleFor`; the hook never spends its own token balance. `test/audit/SR_M01_ERC20StrandedDrain.t.sol` |
+| M-02 | Medium | Scripted CREATE2 deploy makes the deterministic deployer the hook owner, locking fees | ✅ Fixed | Constructor takes an explicit `_owner`; the deploy script passes `OWNER` and asserts it. `test_ownerIsExplicitArgumentNotDeployer` in `test/Numeraire.t.sol` |
 | L-01 | Low | Anyone can open orders that appear to belong to another maker | ✅ Fixed | `_beforeSwap` requires `sender == hookData.executor`; `test/audit/SR_L01_OrderSpoofing.t.sol` |
 | L-02 | Low | Signed `CancelOrder` replayable on a recurring order ID | ✅ Fixed | `CancelOrder` carries a nonce, burned in `Router.cancelNonceUsed`; `test_cancelWithSig_rejectsReplayOnRecurringOrderId` in `test/SignedOrders.t.sol` |
 | L-03 | Low | Tokens that don't return a bool can't be traded | ✅ Fixed | Production `src/libraries/CurrencySettler.sol` uses OpenZeppelin `SafeERC20`; the Router uses `safeTransferFrom`. `test/audit/SR_L03_NoReturnToken.t.sol` |
@@ -59,4 +60,6 @@ These need a Router and hook redeploy, and frontend updates:
 
 - `Router.cancelWithSig(order, deadline, sig)` is now `cancelWithSig(order, nonce, deadline, sig)`, and the `CancelOrder` EIP-712 type gains `uint256 nonce` before `deadline`. Update `src/app/data/orderSignatures.ts` and `orderTransactions.ts` in the app repo.
 - Ownership transfer now takes two steps: the new owner must call `acceptOwnership()`.
+- The `AsyncSwap` constructor takes a third argument, `address _owner`. Use `(poolManager, numeraire, owner)` when verifying on Uniscan.
+- `foundry.toml` now enables the optimizer (`optimizer_runs = 1_000_000`). Without it, `AsyncSwap` was 25,525 bytes, over the EIP-170 limit of 24,576, and could not be deployed; it is now 18,375 bytes. Verify with the same compiler settings.
 - Custom executors (not the Router) must call `PoolManager.swap` themselves (L-01), and for ERC20 output must pay into the PoolManager and call `settleFor(hook)` before `executeOrder` (M-01).
