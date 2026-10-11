@@ -255,8 +255,12 @@ contract SignedOrdersTest is SetupHook {
 
     /* ---------------------------------- cancel --------------------------------- */
 
-    function _cancelSig(AsyncOrder memory order, uint256 deadline, uint256 pk) internal view returns (bytes memory) {
-        bytes32 structHash = OrderSignatures.hashCancel(order, _id(order), AMOUNT_IN, deadline);
+    function _cancelSig(AsyncOrder memory order, uint256 nonce, uint256 deadline, uint256 pk)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 structHash = OrderSignatures.hashCancel(order, _id(order), AMOUNT_IN, nonce, deadline);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, _digest(router.DOMAIN_SEPARATOR(), structHash));
         return abi.encodePacked(r, s, v);
     }
@@ -267,7 +271,7 @@ contract SignedOrdersTest is SetupHook {
         uint256 deadline = block.timestamp + 1 hours;
 
         vm.prank(relayer);
-        router.cancelWithSig(order, deadline, _cancelSig(order, deadline, makerPk));
+        router.cancelWithSig(order, 0, deadline, _cancelSig(order, 0, deadline, makerPk));
 
         assertEq(token0.balanceOf(maker), makerBefore + AMOUNT_IN, "input returned");
         (uint256 storedIn,) = hook.asyncOrderInfo(poolId, _id(order));
@@ -277,22 +281,43 @@ contract SignedOrdersTest is SetupHook {
     function test_cancelWithSig_rejectsWrongSigner() public {
         AsyncOrder memory order = _createSigned();
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory sig = _cancelSig(order, deadline, 0xBAD);
+        bytes memory sig = _cancelSig(order, 0, deadline, 0xBAD);
 
         vm.prank(relayer);
         vm.expectRevert(Router.InvalidSignature.selector);
-        router.cancelWithSig(order, deadline, sig);
+        router.cancelWithSig(order, 0, deadline, sig);
     }
 
     function test_cancelWithSig_rejectsExpired() public {
         AsyncOrder memory order = _createSigned();
         uint256 deadline = block.timestamp + 1 hours;
-        bytes memory sig = _cancelSig(order, deadline, makerPk);
+        bytes memory sig = _cancelSig(order, 0, deadline, makerPk);
         vm.warp(deadline + 1);
 
         vm.prank(relayer);
         vm.expectRevert(Router.SignatureExpired.selector);
-        router.cancelWithSig(order, deadline, sig);
+        router.cancelWithSig(order, 0, deadline, sig);
+    }
+
+    /// @dev L-02: an identical order re-placed in the same block gets the same id; the used
+    ///      cancel nonce must stop the old signature from cancelling the replacement.
+    function test_cancelWithSig_rejectsReplayOnRecurringOrderId() public {
+        AsyncOrder memory order = _createSigned();
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory sig = _cancelSig(order, 0, deadline, makerPk);
+        vm.prank(relayer);
+        router.cancelWithSig(order, 0, deadline, sig);
+
+        AsyncOrder memory again = _order(AMOUNT_OUT_MIN);
+        Router.PermitData memory permit = _permit(again, 1, block.timestamp + 1 hours);
+        vm.prank(relayer);
+        router.swapWithSig(again, permit, _noGrant());
+        (uint256 storedIn,) = hook.asyncOrderInfo(poolId, _id(order));
+        assertEq(storedIn, AMOUNT_IN, "same order id reused");
+
+        vm.prank(relayer);
+        vm.expectRevert(Router.NonceAlreadyUsed.selector);
+        router.cancelWithSig(order, 0, deadline, sig);
     }
 
     /* ------------------------------ type strings ------------------------------- */
@@ -307,6 +332,12 @@ contract SignedOrdersTest is SetupHook {
             OrderSignatures.ASYNC_ORDER_TYPEHASH,
             keccak256(
                 "AsyncOrder(address maker,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOutMin,PoolKey pool)PoolKey(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks)"
+            )
+        );
+        assertEq(
+            OrderSignatures.CANCEL_ORDER_TYPEHASH,
+            keccak256(
+                "CancelOrder(address maker,address tokenIn,address tokenOut,uint256 amountIn,bytes32 orderId,uint256 nonce,uint256 deadline)"
             )
         );
     }

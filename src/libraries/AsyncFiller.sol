@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
-import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
+import {CurrencySettler} from "@async-swap/libraries/CurrencySettler.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {PoolId} from "v4-core/types/PoolId.sol";
@@ -88,7 +88,7 @@ library AsyncFiller {
     ///         order owner; `filler` is the actual end-user paying the output and receiving the
     ///         input. Must be invoked from inside an `IPoolManager.unlock` context.
     ///
-    /// @dev Settle gross output, pay the signed net minimum to the maker, and mint fee
+    /// @dev Settle gross output (native only; ERC20 is pre-settled), pay the signed net minimum to the maker, and mint fee
     ///      claims to the vault. Burn input claims and pay the full input to the filler.
     ///      Both currency deltas net to zero. A failed fill reverts all legs.
     function fill(
@@ -112,10 +112,11 @@ library AsyncFiller {
 
         delete self.orders[id];
 
-        // Output side: hook holds the filler's tokens (router transferred them in). Settle them
-        // to PM, then take real tokens straight to the maker — no 6909 withdrawal step needed
-        // post-fill. Both attribute to the hook → net zero on output delta.
-        output.settle(self.poolManager, hook, amountOutMin + fee, false);
+        // Output side: ERC20 output must already be settled to the hook's credit by the executor
+        // (`PoolManager.settleFor(hook)`), so the hook never spends its own token balance. Native
+        // output is settled from the filler's same-tx deposit, guarded by the hook's ledger.
+        // Then take real tokens straight to the maker — both legs net the hook's output delta to zero.
+        if (output.isAddressZero()) output.settle(self.poolManager, hook, amountOutMin + fee, false);
         output.take(self.poolManager, order.owner, amountOutMin, false);
 
         if (fee != 0) {

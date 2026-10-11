@@ -44,7 +44,7 @@ library OrderSignatures {
     );
 
     bytes32 internal constant CANCEL_ORDER_TYPEHASH = keccak256(
-        "CancelOrder(address maker,address tokenIn,address tokenOut,uint256 amountIn,bytes32 orderId,uint256 deadline)"
+        "CancelOrder(address maker,address tokenIn,address tokenOut,uint256 amountIn,bytes32 orderId,uint256 nonce,uint256 deadline)"
     );
 
     function tokens(AsyncOrder memory order) internal pure returns (address tokenIn, address tokenOut) {
@@ -120,13 +120,16 @@ library OrderSignatures {
         );
     }
 
-    /// @dev No nonce: a cancel deletes the order, so replaying the signature reverts with OrderNotFound.
-    function hashCancel(AsyncOrder memory order, bytes32 orderId, uint256 amountIn, uint256 deadline)
+    /// @dev Carries a nonce: order ids can recur (identical order re-placed in the same block after a
+    ///      cancel), so order deletion alone does not stop a signed cancel from being replayed.
+    function hashCancel(AsyncOrder memory order, bytes32 orderId, uint256 amountIn, uint256 nonce, uint256 deadline)
         internal
         pure
         returns (bytes32)
     {
         (address tokenIn, address tokenOut) = tokens(order);
-        return keccak256(abi.encode(CANCEL_ORDER_TYPEHASH, order.owner, tokenIn, tokenOut, amountIn, orderId, deadline));
+        return keccak256(
+            abi.encode(CANCEL_ORDER_TYPEHASH, order.owner, tokenIn, tokenOut, amountIn, orderId, nonce, deadline)
+        );
     }
 }

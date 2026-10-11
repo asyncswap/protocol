@@ -6,9 +6,10 @@ import {OrderSignatures} from "@async-swap/libraries/OrderSignatures.sol";
 import {AsyncOrder} from "@async-swap/types/AsyncOrder.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
+import {CurrencySettler} from "@async-swap/libraries/CurrencySettler.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IPoolManager, SwapParams} from "v4-core/interfaces/IPoolManager.sol";
-import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {SafeCast} from "v4-core/libraries/SafeCast.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {PoolIdLibrary, PoolKey} from "v4-core/types/PoolKey.sol";
@@ -28,6 +29,7 @@ contract Router is EIP712 {
     using CurrencyLibrary for Currency;
     using SafeCast for *;
     using PoolIdLibrary for PoolKey;
+    using SafeERC20 for IERC20;
 
     IPoolManager immutable POOLMANAGER;
     AsyncSwap immutable HOOK;
@@ -69,8 +71,12 @@ contract Router is EIP712 {
         bytes signature;
     }
 
+    /// @notice Unordered nonces consumed by signed cancels (`cancelWithSig`).
+    mapping(address maker => mapping(uint256 nonce => bool)) public cancelNonceUsed;
+
     error SignatureExpired();
     error InvalidSignature();
+    error NonceAlreadyUsed();
 
     constructor(IPoolManager _poolManager, AsyncSwap _hook, ISignatureTransfer _permit2)
         EIP712("AsyncSwap Router", "1")
@@ -182,11 +188,15 @@ contract Router is EIP712 {
     }
 
     /// @notice Relayer submits a maker's signed EIP-712 `CancelOrder`. Input returns to the maker.
-    function cancelWithSig(AsyncOrder calldata order, uint256 deadline, bytes calldata signature) external {
+    function cancelWithSig(AsyncOrder calldata order, uint256 nonce, uint256 deadline, bytes calldata signature)
+        external
+    {
         if (block.timestamp > deadline) revert SignatureExpired();
+        if (cancelNonceUsed[order.owner][nonce]) revert NonceAlreadyUsed();
+        cancelNonceUsed[order.owner][nonce] = true;
         bytes32 id = _orderId(order);
         (uint256 amountIn,) = HOOK.asyncOrderInfo(order.key.toId(), id);
-        bytes32 digest = _hashTypedDataV4(OrderSignatures.hashCancel(order, id, amountIn, deadline));
+        bytes32 digest = _hashTypedDataV4(OrderSignatures.hashCancel(order, id, amountIn, nonce, deadline));
         if (!SignatureChecker.isValidSignatureNow(order.owner, digest, signature)) revert InvalidSignature();
         POOLMANAGER.unlock(abi.encode(SwapCallback({action: ActionType.Cancel, order: order})));
     }
@@ -255,11 +265,14 @@ contract Router is EIP712 {
                 maxPrice := tload(MAX_PRICE_LOCATION)
             }
             require(livePrice <= maxPrice, "Price exceeds maxPrice");
-            // For ERC20 output, pull `livePrice` from the filler into the hook now (filler
-            // must have approved this router for that amount). For native output the ETH
-            // was already forwarded in fillOrder() above.
+            // For ERC20 output, pay `livePrice` from the filler straight into the PM and credit
+            // it to the hook (filler must have approved this router for that amount); the hook
+            // never spends its own token balance. For native output the ETH was already
+            // forwarded in fillOrder() above.
             if (!output.isAddressZero()) {
-                assert(IERC20Minimal(Currency.unwrap(output)).transferFrom(user, address(HOOK), livePrice));
+                POOLMANAGER.sync(output);
+                IERC20(Currency.unwrap(output)).safeTransferFrom(user, address(POOLMANAGER), livePrice);
+                POOLMANAGER.settleFor(address(HOOK));
             }
             HOOK.executeOrder(orderData.order, abi.encode(user));
         } else if (action == uint8(ActionType.Cancel)) {

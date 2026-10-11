@@ -6,7 +6,7 @@ import {OrderSignatures} from "@async-swap/libraries/OrderSignatures.sol";
 import {AsyncOrder, AsyncOrderLibrary} from "@async-swap/types/AsyncOrder.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
+import {CurrencySettler} from "@async-swap/libraries/CurrencySettler.sol";
 import {IPoolManager, ModifyLiquidityParams, SwapParams} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
@@ -39,6 +39,9 @@ contract AsyncSwap is BaseHook, EIP712 {
     /// @notice Protocol owner authorized to collect vault fees and sweep stranded balances.
     address public owner;
 
+    /// @notice Address nominated by `transferOwnership`; becomes owner on `acceptOwnership`.
+    address public pendingOwner;
+
     /// @notice Holds fee claims separately from open-order escrow.
     FeeVault public immutable feeVault;
 
@@ -69,9 +72,13 @@ contract AsyncSwap is BaseHook, EIP712 {
     error NonceAlreadyUsed();
     error InvalidNumeraire();
     error NumeraireRequired();
+    error DynamicFeeRequired();
 
     /// @notice Emitted when ownership is transferred.
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /// @notice Emitted when the owner nominates a new owner.
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 
     /// @notice Emitted when the owner sweeps an accumulated balance.
     event Swept(Currency indexed currency, address indexed to, uint256 amount);
@@ -112,12 +119,21 @@ contract AsyncSwap is BaseHook, EIP712 {
         emit OwnershipTransferred(address(0), msg.sender);
     }
 
-    /// @notice Transfer protocol ownership. The deployer (or a factory) should call this after
-    ///         deployment to hand control to the intended fee recipient / governance address.
+    /// @notice Start a two-step ownership transfer. The deployer (or a factory) should call this after
+    ///         deployment to hand control to the intended fee recipient / governance address, which
+    ///         then calls `acceptOwnership`.
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert ZeroAddress();
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    /// @notice Complete a two-step ownership transfer. Only the nominated `pendingOwner` may call.
+    function acceptOwnership() external {
+        if (msg.sender != pendingOwner) revert NotOwner();
+        emit OwnershipTransferred(owner, msg.sender);
+        owner = msg.sender;
+        pendingOwner = address(0);
     }
 
     /// @notice Sweep an accumulated balance of `currency` held by this hook to `to`.
@@ -135,7 +151,7 @@ contract AsyncSwap is BaseHook, EIP712 {
     /// @inheritdoc BaseHook
     function _beforeInitialize(address, PoolKey calldata key, uint160) internal virtual override returns (bytes4) {
         if (!(key.currency0 == numeraire || key.currency1 == numeraire)) revert NumeraireRequired();
-        require(key.fee == LPFeeLibrary.DYNAMIC_FEE_FLAG, "Dude use dynamic fees flag");
+        if (key.fee != LPFeeLibrary.DYNAMIC_FEE_FLAG) revert DynamicFeeRequired();
         asyncOrders[key.toId()].poolManager = poolManager;
         return this.beforeInitialize.selector;
     }
@@ -199,7 +215,8 @@ contract AsyncSwap is BaseHook, EIP712 {
     }
 
     /// @notice Fill `order` in full. Must be called from an authorized executor (router) that has
-    ///         already settled `amountOutMin` of output from the filler within the same unlock.
+    ///         already paid the filler's gross output within the same unlock: for ERC20 output via
+    ///         `PoolManager.settleFor(hook)`, for native output by sending ETH to this hook.
     /// @param  data abi.encode(filler) — the address that should receive the maker's input.
     function executeOrder(AsyncOrder calldata order, bytes calldata data) external {
         address filler = abi.decode(data, (address));
@@ -249,6 +266,9 @@ contract AsyncSwap is BaseHook, EIP712 {
         PoolId poolId = key.toId();
         uint256 amountTaken = uint256(-params.amountSpecified);
         UserParams memory hookData = abi.decode(hookParams, (UserParams));
+        // Bind the declared executor to the actual swap caller so nobody can open orders
+        // attributed to a maker through an executor they do not control.
+        if (sender != hookData.executor) revert AsyncFiller.NotAuthorizedExecutor();
 
         Currency specified = params.zeroForOne ? key.currency0 : key.currency1;
 

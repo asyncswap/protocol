@@ -193,6 +193,12 @@ contract I01_FeeClaimsTest is SetupHook {
         vm.expectRevert(FeeVault.Unauthorized.selector);
         vault.collect(currency0, alice);
         hook.transferOwnership(alice);
+        // Two-step: alice gains no rights until she accepts.
+        vm.prank(alice);
+        vm.expectRevert(FeeVault.Unauthorized.selector);
+        vault.collect(currency1, bob);
+        vm.prank(alice);
+        hook.acceptOwnership();
         vm.expectRevert(FeeVault.Unauthorized.selector);
         vault.collect(currency1, bob);
         vm.prank(alice);
