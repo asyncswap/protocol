@@ -27,15 +27,46 @@ No other network is deployment-ready in this repository. Before adding one, conf
 
 The script supplies the canonical Unichain PoolManager (`0x1F98400000000000000000000000000000000004`) and canonical Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`). The deployer must also hold enough native ETH on Unichain for gas.
 
-Create a local config and fill in the provider URL and keystore account:
+### Step 1: Pick the deployer keystore
+
+`DEPLOYER_ACCOUNT` must be a Foundry keystore whose address is the owner `0xb1F0982E02f9F71E60512fd47471d76610CcB556`. List your keystores and check each candidate's address (this asks for that keystore's password):
+
+```sh
+cast wallet list
+cast wallet address --account <name>
+```
+
+If none of them matches, import the owner key into a new keystore. This prompts for the private key and a password, and never writes the key to a file in the repo:
+
+```sh
+cast wallet import asyncswap-production --interactive
+```
+
+Check that the owner holds enough ETH on Unichain for gas (a deploy costs about 0.00002 ETH at 0.001 gwei):
+
+```sh
+cast balance 0xb1F0982E02f9F71E60512fd47471d76610CcB556 --ether --rpc-url https://mainnet.unichain.org
+```
+
+### Step 2: Create `.env.deploy`
 
 ```sh
 cp .env.deploy.example .env.deploy
 ```
 
+Then set at least:
+
+```sh
+RPC_URL=https://mainnet.unichain.org   # or a private provider URL
+DEPLOYER_ACCOUNT=<keystore name from step 1>
+USDC_ADDRESS=0x078D782b760474a361dDA0AF3839290b0EF57AD6
+```
+
 `.env.deploy` is git-ignored. Do not put a raw private key in this file; use a Foundry keystore account.
 
 ## Deploy hook and Router
+
+### Step 3: Dry run
 
 Run the preflight simulation first. It validates the chain, USDC address/code, CREATE2 salt and hook permission bits, and simulates the deployment without broadcasting:
 
@@ -43,13 +74,42 @@ Run the preflight simulation first. It validates the chain, USDC address/code, C
 bash script/deploy-unichain.sh dry-run
 ```
 
-After reviewing the predicted hook address and simulation output, deploy explicitly:
+Expect `Script ran successfully`, a `predicted hook address` starting with `0x91`, and `SIMULATION COMPLETE`. A `contract size limit` error means the optimizer settings in `foundry.toml` were changed; the hook only fits under EIP-170 with the optimizer on. The simulation updates `deployments/130/130.json` and adds a timestamped `130-*.json` file; discard both before broadcasting:
+
+```sh
+git checkout -- deployments && git clean -f deployments
+```
+
+### Step 4: Broadcast
+
+After reviewing the predicted hook address and simulation output, deploy explicitly. Foundry prompts for the keystore password:
 
 ```sh
 bash script/deploy-unichain.sh broadcast
 ```
 
 The script writes the new Hook and Router addresses to `deployments/130/130.json`, then copies their confirmed transaction hashes and receipt blocks from Foundry's broadcast artifact into the registry. The canonical PoolManager is recorded with start block `0` and no deployment transaction hash because AsyncSwap did not deploy it. Use the new addresses in frontend, indexer, and ERC-7730 metadata configuration.
+
+### Step 5: Confirm ownership and numeraire on-chain
+
+The deploy script already asserts the owner during the run. Confirm against the chain anyway, using the hook address from `deployments/130/130.json`:
+
+```sh
+cast call <HOOK> "owner()(address)" --rpc-url "$RPC_URL"      # 0xb1F0982E02f9F71E60512fd47471d76610CcB556
+cast call <HOOK> "numeraire()(address)" --rpc-url "$RPC_URL"  # 0x078D782b760474a361dDA0AF3839290b0EF57AD6
+cast call <HOOK> "feeVault()(address)" --rpc-url "$RPC_URL"
+cast call <ROUTER> "PERMIT2()(address)" --rpc-url "$RPC_URL"  # 0x000000000022D473030F116dDEE9F6B43aC78BA3
+```
+
+Then commit the updated registry (`deployments/130/`).
+
+### Breaking changes in this release
+
+This deployment includes the [security review fixes](../audits/README.md). Old and new contracts are not interchangeable:
+
+- Signed cancels use a new `CancelOrder` EIP-712 type with a `nonce` field, and `Router.cancelWithSig` takes `(order, nonce, deadline, signature)`. The app must ship the matching signing code (interface commit `8c0dc035`) at the same time as it switches to the new addresses.
+- Ownership transfers take two steps: `transferOwnership(newOwner)`, then `acceptOwnership()` from the new owner.
+- Custom executors (anything other than the Router) must call `PoolManager.swap` themselves, and for ERC20 output must pay into the PoolManager and call `settleFor(hook)` before `executeOrder`.
 
 ## Initialize a pool
 
