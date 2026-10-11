@@ -6,7 +6,7 @@ Security reports for the AsyncSwap protocol, and the status of every finding.
 |--------|------|--------|-------|
 | [lee-audit.md](lee-audit.md) | 2026-05-08 | Lee, 33 Labs | Full protocol |
 | [H05-native-overpay-stranded.md](H05-native-overpay-stranded.md) | 2026-08-08 | Meek | Follow-up to lee-audit |
-| [audit.md](audit.md) | 2026-10-10 | Claude Code (AI-assisted) | Full protocol at `760699a` |
+| [claude-audit.md](claude-audit.md) | 2026-10-10 | Claude Code (AI-assisted) | Full protocol at `760699a` |
 
 ## Status key
 
@@ -18,7 +18,7 @@ Security reports for the AsyncSwap protocol, and the status of every finding.
 | ❌ Rejected | Not a valid issue. |
 | ⏳ Open | Not yet addressed. |
 
-Each report's IDs are its own (lee-audit L-01 and audit.md L-01 are different findings), so findings are grouped by report below. Regression tests for `audit.md` use the `SR_` prefix.
+Each report's IDs are its own (lee-audit L-01 and claude-audit.md L-01 are different findings), so findings are grouped by report below. Regression tests for `claude-audit.md` use the `SR_` prefix.
 
 ## lee-audit.md
 
@@ -41,7 +41,7 @@ Each report's IDs are its own (lee-audit L-01 and audit.md L-01 are different fi
 | H-05 | High | Native-output fill overpayment permanently stranded in the hook | ✅ Fixed | `msg.value` must equal the live price plus fee; `test/audit/H05_NativeOverpayStranded.t.sol` |
 | — | — | Native reentrancy defense (hardening, no written finding) | ✅ Fixed | `test/audit/H06_NativeReentrancyDefense.t.sol` |
 
-## audit.md
+## claude-audit.md
 
 | ID | Severity | Finding | Status | Evidence |
 |----|----------|---------|--------|----------|
@@ -53,7 +53,7 @@ Each report's IDs are its own (lee-audit L-01 and audit.md L-01 are different fi
 | I-02 | Info | Fee rounds to zero on orders under 499 base units | 📝 Acknowledged | Under $0.0005 for 6-decimal USDC. The fee itself is exactly 0.2% of gross, as documented. |
 | I-03 | Info | String revert instead of a custom error | ✅ Fixed | `DynamicFeeRequired()` |
 
-### Breaking changes from the audit.md fixes
+### Breaking changes from the claude-audit.md fixes
 
 These need a Router and hook redeploy, and frontend updates:
 
