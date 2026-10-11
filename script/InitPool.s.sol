@@ -24,7 +24,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 ///           TOKEN_IN=ETH TOKEN_OUT=USDC INIT_SQRT_PRICE_X96=... \
 ///           forge script script/InitPool.s.sol --rpc-url unichain --broadcast
 ///
-///         The PoolKey is persisted to deployments/<chainId>-pool.json so subsequent scripts
+///         The PoolKey is persisted to deployments/<chainId>/pool.json so subsequent scripts
 ///         can reload it without re-passing args.
 contract InitPoolScript is FFIHelper {
     IPoolManager manager;

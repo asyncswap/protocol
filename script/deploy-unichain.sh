@@ -62,6 +62,6 @@ forge "${forge_args[@]}"
 if [[ "$mode" == "broadcast" ]]; then
   python3 "$ROOT_DIR/script/sync-deployment-record.py" \
     --chain-id "$chain_id" \
-    --registry "$ROOT_DIR/deployments/$chain_id.json" \
+    --registry "$ROOT_DIR/deployments/$chain_id/deployment.json" \
     --broadcast "$ROOT_DIR/broadcast/01_DeployHook.s.sol/$chain_id/run-latest.json"
 fi

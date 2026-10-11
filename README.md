@@ -38,7 +38,7 @@ forge fmt --check
 ## Deployment
 
 The checked deployment flow currently targets Unichain mainnet only. The
-existing addresses in `deployments/130.json` may refer to an earlier version;
+existing addresses in `deployments/130/deployment.json` may refer to an earlier version;
 the current source changes require a new hook and Router deployment, followed
 by initialization of new pools. Existing pools and open orders remain on their
 current hook.

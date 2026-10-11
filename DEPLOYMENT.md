@@ -49,7 +49,7 @@ After reviewing the predicted hook address and simulation output, deploy explici
 bash script/deploy-unichain.sh broadcast
 ```
 
-The script writes the new Hook and Router addresses to `deployments/130.json`, then copies their confirmed transaction hashes and receipt blocks from Foundry's broadcast artifact into the registry. The canonical PoolManager is recorded with start block `0` and no deployment transaction hash because AsyncSwap did not deploy it. Use the new addresses in frontend, indexer, and ERC-7730 metadata configuration.
+The script writes the new Hook and Router addresses to `deployments/130/deployment.json`, then copies their confirmed transaction hashes and receipt blocks from Foundry's broadcast artifact into the registry. The canonical PoolManager is recorded with start block `0` and no deployment transaction hash because AsyncSwap did not deploy it. Use the new addresses in frontend, indexer, and ERC-7730 metadata configuration.
 
 ## Initialize a pool
 
@@ -81,7 +81,7 @@ forge script script/InitPool.s.sol --rpc-url "$RPC_URL" --ffi --account "$DEPLOY
 forge script script/InitPool.s.sol --rpc-url "$RPC_URL" --ffi --account "$DEPLOYER_ACCOUNT" --broadcast
 ```
 
-The pool script persists the `PoolKey` in `deployments/130-pool.json`. This deployment does not add liquidity; AsyncSwap orders are peer-to-peer.
+The pool script persists the `PoolKey` in `deployments/130/pool.json`. This deployment does not add liquidity; AsyncSwap orders are peer-to-peer.
 
 ## Post-deployment checks
 

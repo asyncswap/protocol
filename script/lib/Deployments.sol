@@ -5,7 +5,7 @@ import {CommonBase} from "forge-std/Base.sol";
 
 /// @title DeploymentsRegistry
 /// @notice Per-chain deployment registry written by deploy scripts and read by the indexer.
-///         Path: `deployments/<chainId>.json`. See contracts/script/lib/Deployments.sol for shape.
+///         Path: `deployments/<chainId>/deployment.json`. See contracts/script/lib/Deployments.sol for shape.
 abstract contract DeploymentsRegistry is CommonBase {
     struct Entry {
         string name;
@@ -14,14 +14,16 @@ abstract contract DeploymentsRegistry is CommonBase {
         bytes32 txHash;
     }
 
+    function _chainDirPath(uint256 chainId) internal view returns (string memory) {
+        return string.concat(vm.projectRoot(), "/deployments/", vm.toString(chainId));
+    }
+
     function _registryPath(uint256 chainId) internal view returns (string memory) {
-        return string.concat(vm.projectRoot(), "/deployments/", vm.toString(chainId), ".json");
+        return string.concat(_chainDirPath(chainId), "/deployment.json");
     }
 
     function _historyPath(uint256 chainId, uint256 timestamp) internal view returns (string memory) {
-        return string.concat(
-            vm.projectRoot(), "/deployments/history/", vm.toString(chainId), "-", vm.toString(timestamp), ".json"
-        );
+        return string.concat(_chainDirPath(chainId), "/deployment-", vm.toString(timestamp), ".json");
     }
 
     function _registryExists(uint256 chainId) internal view returns (bool) {
@@ -52,6 +54,7 @@ abstract contract DeploymentsRegistry is CommonBase {
 
     function _ensureRegistry(uint256 chainId) internal {
         if (_registryExists(chainId)) return;
+        vm.createDir(_chainDirPath(chainId), true);
 
         string memory rootKey = "deployments_root_init";
         vm.serializeUint(rootKey, "chainId", chainId);
