@@ -1,12 +1,489 @@
 {
   "schemaVersion": 1,
-  "description": "AsyncSwap deployment reference for the chains currently configured in the app and protocol repository.",
+  "description": "AsyncSwap deployment reference for configured EVM networks. Chain dependencies may be listed before AsyncSwap is deployed there.",
   "sources": {
     "poolManager": "https://developers.uniswap.org/docs/protocols/v4/deployments",
+    "permit2": "https://developers.uniswap.org/docs/protocols/permit2/overview",
     "unichainUsdc": "https://developers.uniswap.org/docs/unichain/technical-information/contract-addresses",
-    "permit2": "https://github.com/Uniswap/permit2"
+    "arcUsdc": "https://www.arc.io/blog/building-with-usdc-on-arc-one-token-two-interfaces"
   },
   "chains": {
+    "arbitrum": {
+      "name": "Arbitrum One",
+      "chainId": 42161,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_ARBITRUM",
+      "explorerUrl": "https://arbiscan.io",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "arc": {
+      "name": "Arc",
+      "chainId": 5042,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_ARC",
+      "explorerUrl": "https://explorer.arc.io",
+      "nativeCurrency": { "name": "USDC", "symbol": "USDC", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": "0x3600000000000000000000000000000000000000",
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "avalanche": {
+      "name": "Avalanche C-Chain",
+      "chainId": 43114,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_AVALANCHE",
+      "explorerUrl": "https://snowscan.xyz",
+      "nativeCurrency": { "name": "Avalanche", "symbol": "AVAX", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x06380c0e0912312b5150364b9dc4542ba0dbbc85",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "base": {
+      "name": "Base",
+      "chainId": 8453,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_BASE",
+      "explorerUrl": "https://basescan.org",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x498581ff718922c3f8e6a244956af099b2652b2b",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "bnbChain": {
+      "name": "BNB Smart Chain",
+      "chainId": 56,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_BNB_CHAIN",
+      "explorerUrl": "https://bscscan.com",
+      "nativeCurrency": { "name": "BNB", "symbol": "BNB", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x28e2ea090877bf75740558f6bfb36a5ffee9e9df",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "celo": {
+      "name": "Celo",
+      "chainId": 42220,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_CELO",
+      "explorerUrl": "https://celoscan.io",
+      "nativeCurrency": { "name": "CELO", "symbol": "CELO", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x288dc841A52FCA2707c6947B3A777c5E56cd87BC",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "ink": {
+      "name": "Ink",
+      "chainId": 57073,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_INK",
+      "explorerUrl": "https://explorer.inkonchain.com",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "linea": {
+      "name": "Linea",
+      "chainId": 59144,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_LINEA",
+      "explorerUrl": "https://lineascan.build",
+      "nativeCurrency": { "name": "Linea Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": null,
+        "permit2": null,
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration",
+          "confirm Uniswap v4 PoolManager and Permit2 availability"
+        ]
+      }
+    },
+    "megaEth": {
+      "name": "MegaETH",
+      "chainId": 4326,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_MEGAETH",
+      "explorerUrl": "https://megaeth.blockscout.com",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0xacb7e78fa05d562e0a5d3089ec896d57d057d38e",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "monad": {
+      "name": "Monad",
+      "chainId": 143,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_MONAD",
+      "explorerUrl": "https://monadvision.com",
+      "nativeCurrency": { "name": "Monad", "symbol": "MON", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x188d586ddcf52439676ca21a244753fa19f9ea8e",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "optimism": {
+      "name": "OP Mainnet",
+      "chainId": 10,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_OPTIMISM",
+      "explorerUrl": "https://optimistic.etherscan.io",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x9a13f98cb987694c9f086b1f5eb990eea8264ec3",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "polygon": {
+      "name": "Polygon PoS",
+      "chainId": 137,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_POLYGON",
+      "explorerUrl": "https://polygonscan.com",
+      "nativeCurrency": { "name": "POL", "symbol": "POL", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x67366782805870060151383f4bbff9dab53e5cd6",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "robinhoodChain": {
+      "name": "Robinhood Chain",
+      "chainId": 4663,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_ROBINHOOD",
+      "explorerUrl": "https://robinhoodchain.blockscout.com",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "soneium": {
+      "name": "Soneium",
+      "chainId": 1868,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_SONEIUM",
+      "explorerUrl": "https://soneium.blockscout.com",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "tempo": {
+      "name": "Tempo",
+      "chainId": 4217,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_TEMPO",
+      "explorerUrl": "https://explore.tempo.xyz",
+      "nativeCurrency": { "name": "USD", "symbol": "USD", "decimals": 6 },
+      "contracts": {
+        "poolManager": "0x33620f62c5b9b2086dd6b62f4a297a9f30347029",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "worldChain": {
+      "name": "World Chain",
+      "chainId": 480,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_WORLD_CHAIN",
+      "explorerUrl": "https://worldscan.org",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0xb1860d529182ac3bc1f51fa2abd56662b7d13f33",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "xLayer": {
+      "name": "X Layer",
+      "chainId": 196,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_X_LAYER",
+      "explorerUrl": "https://www.oklink.com/xlayer",
+      "nativeCurrency": { "name": "OKB", "symbol": "OKB", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
+    "zksync": {
+      "name": "ZKsync Era",
+      "chainId": 324,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_ZKSYNC",
+      "explorerUrl": "https://explorer.zksync.io",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": null,
+        "permit2": null,
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration",
+          "confirm Uniswap v4 PoolManager and Permit2 availability"
+        ]
+      }
+    },
+    "zora": {
+      "name": "Zora",
+      "chainId": 7777777,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_ZORA",
+      "explorerUrl": "https://explorer.zora.energy",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x0575338e4c17006ae181b47900a84404247ca30f",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": [
+          "chain-specific deployment wrapper",
+          "configured RPC",
+          "verified USDC address",
+          "deployment and pool configuration"
+        ]
+      }
+    },
     "ethereum": {
       "name": "Ethereum",
       "chainId": 1,
@@ -24,7 +501,11 @@
       "deployment": {
         "status": "config_only",
         "script": null,
-        "requires": ["chain-specific deployment wrapper", "verified RPC", "deployment and pool configuration"]
+        "requires": [
+          "chain-specific deployment wrapper",
+          "verified RPC",
+          "deployment and pool configuration"
+        ]
       }
     },
     "unichain": {
@@ -45,7 +526,11 @@
         "status": "prepared",
         "script": "script/deploy-unichain.sh",
         "rpcUrlEnvOverride": "RPC_URL",
-        "requires": ["private RPC", "funded deployer keystore", "verified USDC bytecode"]
+        "requires": [
+          "private RPC",
+          "funded deployer keystore",
+          "verified USDC bytecode"
+        ]
       }
     },
     "unichainSepolia": {
@@ -65,7 +550,11 @@
       "deployment": {
         "status": "config_only",
         "script": null,
-        "requires": ["chain-specific deployment wrapper", "verified test-token bytecode", "test pool configuration"]
+        "requires": [
+          "chain-specific deployment wrapper",
+          "verified test-token bytecode",
+          "test pool configuration"
+        ]
       }
     },
     "anvil": {
@@ -85,7 +574,9 @@
       "deployment": {
         "status": "local_only",
         "script": null,
-        "requires": ["local deployment scripts and local test-token addresses"]
+        "requires": [
+          "local deployment scripts and local test-token addresses"
+        ]
       }
     }
   }
