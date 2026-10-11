@@ -9,6 +9,8 @@ out/
 
 # Docs
 docs/*
+!docs/DEPLOYMENT.md
+!docs/ERC-7730.md
 !docs/specs/
 !docs/specs/**
 

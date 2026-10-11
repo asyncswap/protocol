@@ -4,7 +4,7 @@ This runbook deploys the current hook and Router to Unichain mainnet (chain ID `
 
 ## Chain coverage in this checkout
 
-The reference addresses and per-chain readiness flags are in [`script/config/chains.json`](script/config/chains.json). It covers every chain currently configured in the app/protocol checkout; it is not a registry of every network with a Uniswap v4 deployment.
+The reference addresses and per-chain readiness flags are in [`script/config/chains.json`](../script/config/chains.json). It covers every chain currently configured in the app/protocol checkout; it is not a registry of every network with a Uniswap v4 deployment.
 
 | Chain | ID | Current state |
 | --- | ---: | --- |

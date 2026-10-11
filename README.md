@@ -43,9 +43,9 @@ the current source changes require a new hook and Router deployment, followed
 by initialization of new pools. Existing pools and open orders remain on their
 current hook.
 
-- [Deployment runbook](DEPLOYMENT.md) — inputs, preflight, broadcast, and pool initialization.
+- [Deployment runbook](docs/DEPLOYMENT.md) — inputs, preflight, broadcast, and pool initialization.
 - [Chain configuration](script/config/chains.json) — configured networks and readiness.
-- [Signed-message metadata](ERC-7730.md) — wallet display metadata and release checks.
+- [Signed-message metadata](docs/ERC-7730.md) — wallet display metadata and release checks.
 - [USDC numeraire spec](docs/specs/usdc-numeraire.md) — scope and rationale.
 
 Do not enable the new deployment in the frontend or publish wallet metadata
