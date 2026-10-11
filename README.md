@@ -33,6 +33,8 @@ own wallet and pay network gas. A separate relayer service is not required. Type
 
 For ERC-7730 wallet clear-signing metadata preparation and release requirements, see [`ERC-7730.md`](ERC-7730.md). ERC-7730 is display metadata; it does not change the contracts' signature verification.
 
+For the Unichain deployment inputs, dry-run, broadcast, and fresh-pool initialization steps, see [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
 - The maker approves Permit2 once per input token; subsequent creates use a signature followed by a transaction.
   Native ETH input still goes through `swap`.
 - `SetExecutor` / `UpdatePrice` use unordered per-maker nonces (`nonceUsed`); revoke an unsent

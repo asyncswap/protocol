@@ -18,7 +18,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 ///           TOKEN_OUT             symbol
 ///           POOL_FEE              default LPFeeLibrary.DYNAMIC_FEE_FLAG (so the hook drives fee)
 ///           POOL_TICK_SPACING     default 60
-///           INIT_SQRT_PRICE_X96   default 2**96 (= 1.0 between the sorted currencies)
+///           INIT_SQRT_PRICE_X96   required initial price for the sorted currencies
 ///
 ///         Example:
 ///           TOKEN_IN=ETH TOKEN_OUT=USDC INIT_SQRT_PRICE_X96=... \
@@ -55,14 +55,17 @@ contract InitPoolScript is FFIHelper {
             c1 = Currency.wrap(inAddr);
         }
 
+        uint256 rawFee = vm.envOr("POOL_FEE", uint256(LPFeeLibrary.DYNAMIC_FEE_FLAG));
+        require(rawFee <= type(uint24).max, "POOL_FEE exceeds uint24");
+        uint256 rawTickSpacing = vm.envOr("POOL_TICK_SPACING", uint256(60));
+        require(rawTickSpacing > 0 && rawTickSpacing <= uint256(uint24(type(int24).max)), "invalid tick spacing");
+        uint256 rawSqrtPriceX96 = vm.envUint("INIT_SQRT_PRICE_X96");
+        require(rawSqrtPriceX96 > 0 && rawSqrtPriceX96 <= type(uint160).max, "invalid INIT_SQRT_PRICE_X96");
+
         PoolKey memory key = PoolKey({
-            currency0: c0,
-            currency1: c1,
-            fee: uint24(vm.envOr("POOL_FEE", uint256(LPFeeLibrary.DYNAMIC_FEE_FLAG))),
-            tickSpacing: int24(int256(vm.envOr("POOL_TICK_SPACING", uint256(60)))),
-            hooks: hook
+            currency0: c0, currency1: c1, fee: uint24(rawFee), tickSpacing: int24(int256(rawTickSpacing)), hooks: hook
         });
-        uint160 sqrtPriceX96 = uint160(vm.envOr("INIT_SQRT_PRICE_X96", uint256(2 ** 96)));
+        uint160 sqrtPriceX96 = uint160(rawSqrtPriceX96);
 
         console.log("Initializing pool:");
         console.log("  currency0:    ", Currency.unwrap(c0));

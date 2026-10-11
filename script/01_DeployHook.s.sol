@@ -49,6 +49,7 @@ contract DeployHookScript is FFIHelper {
         address predicted = _computeCreate2Address(0x4e59b44847b379578588920cA78FbF26c0B4956C, salt, initCodeHash);
         require((uint160(predicted) & Hooks.ALL_HOOK_MASK) == hookFlags, "salt does not produce required hook flags");
         require((uint160(predicted) & HOOK_PREFIX_MASK) == HOOK_PREFIX, "salt does not produce required 0x91 prefix");
+        require(predicted.code.length == 0, "hook already deployed at predicted address");
 
         console.log("hook salt:");
         console.logBytes32(salt);
