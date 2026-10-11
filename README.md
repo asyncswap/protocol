@@ -46,7 +46,7 @@ current hook.
 - [Deployment runbook](DEPLOYMENT.md) — inputs, preflight, broadcast, and pool initialization.
 - [Chain configuration](script/config/chains.json) — configured networks and readiness.
 - [Signed-message metadata](ERC-7730.md) — wallet display metadata and release checks.
-- [USDC numeraire decision](docs/decisions/usdc-numeraire.md) — scope and rationale.
+- [USDC numeraire spec](docs/specs/usdc-numeraire.md) — scope and rationale.
 
 Do not enable the new deployment in the frontend or publish wallet metadata
 until the deployed addresses, supported chains, and security review are final.

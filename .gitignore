@@ -9,8 +9,8 @@ out/
 
 # Docs
 docs/*
-!docs/decisions/
-!docs/decisions/**
+!docs/specs/
+!docs/specs/**
 
 # Dotenv file
 .env

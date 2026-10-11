@@ -1,4 +1,4 @@
-# Decision: USDC as the common numeraire
+# USDC as the common numeraire
 
 Date: 2026-10-10. Implemented in source; not deployed.
 
