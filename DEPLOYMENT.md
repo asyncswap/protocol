@@ -2,6 +2,19 @@
 
 This runbook deploys the current hook and Router to Unichain mainnet (chain ID `130`). It does not broadcast anything unless the `broadcast` mode is passed explicitly. Deploying creates new contract addresses; initialize new pools against the new hook after deployment. Existing pools and orders remain attached to the old hook.
 
+## Chain coverage in this checkout
+
+The reference addresses and per-chain readiness flags are in [`script/config/chains.json`](script/config/chains.json). It covers every chain currently configured in the app/protocol checkout; it is not a registry of every network with a Uniswap v4 deployment.
+
+| Chain | ID | Current state |
+| --- | ---: | --- |
+| Unichain mainnet | `130` | Deployment wrapper and live token map are prepared. |
+| Ethereum mainnet | `1` | Canonical PoolManager is configured; deploy wrapper and live token/pool map are not. |
+| Unichain Sepolia | `1301` | Canonical PoolManager is configured; deploy wrapper and test-token/pool map are not. |
+| Anvil | `31337` | Local development/test path only. |
+
+No other network is deployment-ready in this repository. Before adding one, configure and verify that chain's v4 PoolManager, official USDC address, token map, RPC/chain-ID checks, and deployment metadata. Do not substitute bridged or lookalike USDC contracts.
+
 ## Parameters
 
 | Name | Required | Value / purpose |

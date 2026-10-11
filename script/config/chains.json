@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "description": "AsyncSwap deployment reference for the chains currently configured in the app and protocol repository.",
+  "sources": {
+    "poolManager": "https://developers.uniswap.org/docs/protocols/v4/deployments",
+    "unichainUsdc": "https://developers.uniswap.org/docs/unichain/technical-information/contract-addresses",
+    "permit2": "https://github.com/Uniswap/permit2"
+  },
+  "chains": {
+    "ethereum": {
+      "name": "Ethereum",
+      "chainId": 1,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_ETHEREUM",
+      "explorerUrl": "https://etherscan.io",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x000000000004444c5dc75cB358380D2e3dE08A90",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": ["chain-specific deployment wrapper", "verified RPC", "deployment and pool configuration"]
+      }
+    },
+    "unichain": {
+      "name": "Unichain",
+      "chainId": 130,
+      "network": "mainnet",
+      "rpcUrlEnv": "RPC_URL_UNICHAIN",
+      "explorerUrl": "https://uniscan.xyz",
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x1F98400000000000000000000000000000000004",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "prepared",
+        "script": "script/deploy-unichain.sh",
+        "rpcUrlEnvOverride": "RPC_URL",
+        "requires": ["private RPC", "funded deployer keystore", "verified USDC bytecode"]
+      }
+    },
+    "unichainSepolia": {
+      "name": "Unichain Sepolia",
+      "chainId": 1301,
+      "network": "testnet",
+      "rpcUrlEnv": "RPC_URL_UNICHAIN_SEPOLIA",
+      "explorerUrl": "https://sepolia.uniscan.xyz",
+      "nativeCurrency": { "name": "Sepolia Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": "0x00B036B58a818B1BC34d502D3fE730Db729e62AC",
+        "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "usdc": "0x31d0220469e10c4e71834a79b1f276d740d3768f",
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "config_only",
+        "script": null,
+        "requires": ["chain-specific deployment wrapper", "verified test-token bytecode", "test pool configuration"]
+      }
+    },
+    "anvil": {
+      "name": "Anvil",
+      "chainId": 31337,
+      "network": "local",
+      "rpcUrlEnv": "RPC_URL_ANVIL",
+      "explorerUrl": null,
+      "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+      "contracts": {
+        "poolManager": null,
+        "permit2": null,
+        "usdc": null,
+        "asyncSwapHook": null,
+        "router": null
+      },
+      "deployment": {
+        "status": "local_only",
+        "script": null,
+        "requires": ["local deployment scripts and local test-token addresses"]
+      }
+    }
+  }
+}
