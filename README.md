@@ -31,6 +31,8 @@ own wallet and pay network gas. A separate relayer service is not required. Type
 | Reprice | `AsyncSwap.updatePriceWithSig` | `UpdatePrice` | `AsyncSwap` v1 (hook) |
 | Cancel | `Router.cancelWithSig` | `CancelOrder` | `AsyncSwap Router` v1 |
 
+For ERC-7730 wallet clear-signing metadata preparation and release requirements, see [`ERC-7730.md`](ERC-7730.md). ERC-7730 is display metadata; it does not change the contracts' signature verification.
+
 - The maker approves Permit2 once per input token; subsequent creates use a signature followed by a transaction.
   Native ETH input still goes through `swap`.
 - `SetExecutor` / `UpdatePrice` use unordered per-maker nonces (`nonceUsed`); revoke an unsent
