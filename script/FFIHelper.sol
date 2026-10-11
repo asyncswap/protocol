@@ -43,7 +43,9 @@ contract FFIHelper is Script, DeploymentsRegistry {
     /* ------------------------- pool key persistence ------------------------- */
 
     function _poolKeyPath() internal view returns (string memory) {
-        return string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), "/pool.json");
+        return string.concat(
+            vm.projectRoot(), "/deployments/", vm.toString(block.chainid), "/", vm.toString(block.chainid), "-pool.json"
+        );
     }
 
     /// @notice Persist the active PoolKey to a sidecar JSON so swap/fill scripts can rebuild it
@@ -79,7 +81,14 @@ contract FFIHelper is Script, DeploymentsRegistry {
     }
 
     function _orderPath() internal view returns (string memory) {
-        return string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), "/order.json");
+        return string.concat(
+            vm.projectRoot(),
+            "/deployments/",
+            vm.toString(block.chainid),
+            "/",
+            vm.toString(block.chainid),
+            "-order.json"
+        );
     }
 
     /// @notice Persist the most-recently-submitted order so 05_ExecuteOrder can fill it without
