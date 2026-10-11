@@ -1,0 +1,21 @@
+{
+  "chainId": 130,
+  "contracts": {
+    "PoolManager": {
+      "address": "0x1F98400000000000000000000000000000000004",
+      "startBlock": 0,
+      "txHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "AsyncSwap": {
+      "address": "0x917b2e7C352af82c35C7a4477d7D055C54E76888",
+      "startBlock": 47534293,
+      "txHash": "0x48d261b1d975fd014a046231a556f3b5b5dc10716afa779ecd5995fa6e6cf7cd"
+    },
+    "Router": {
+      "address": "0x88A76b0991016754425093C8fB440744c5574b75",
+      "startBlock": 47534294,
+      "txHash": "0x26f585fb438477573424ebafbf35b1a32d29ebff230e4a53978fccba34d31431"
+    }
+  },
+  "updatedAt": 1778282695
+}
