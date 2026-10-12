@@ -1,0 +1,50 @@
+name: Publish Forge documentation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 8 * * 1"
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/publish-forge-docs.yml"
+      - "src/**"
+      - "docs/**"
+      - "foundry.toml"
+      - "foundry.lock"
+      - "remappings.txt"
+      - "dependencies/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-forge-docs
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out protocol, including its contract dependencies
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.1
+
+      - name: Build Forge documentation
+        run: |
+          forge doc --build --out "$RUNNER_TEMP/forge-docs"
+          test -f "$RUNNER_TEMP/forge-docs/book/index.html"
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ${{ runner.temp }}/forge-docs/book
+          cname: docs.asyncswap.org
