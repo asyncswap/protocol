@@ -1,0 +1,519 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>AsyncSwap</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../../book.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asyncswap/protocol" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="asyncswap"><a class="header" href="#asyncswap">AsyncSwap</a></h1>
+<p><a href="https://github.com/asyncswap/protocol/blob/08d1e49118ddd2c12308bc772b67d1f041601249/src/AsyncSwap.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="/src/BaseHook.sol/abstract.BaseHook.html">BaseHook</a>, EIP712</p>
+<p><strong>Title:</strong>
+AsyncSwap</p>
+<p><strong>Author:</strong>
+@msakiart</p>
+<p>Uniswap v4 hook that converts an exact-input swap into an open async order: the maker
+deposits their input via <code>_beforeSwap</code>, and a filler later settles by paying the maker's
+limit-priced output. v1 is full-fill only.
+Makers can also act by EIP-712 signature (<code>setExecutorWithSig</code>, <code>updatePriceWithSig</code>) so a
+relayer pays gas and the wallet shows a readable message. See <code>OrderSignatures</code> for types.</p>
+<h2 id="state-variables"><a class="header" href="#state-variables">State Variables</a></h2>
+<h3 id="asyncorders"><a class="header" href="#asyncorders">asyncOrders</a></h3>
+<p>Per-pool order book.</p>
+<pre><code class="language-solidity">mapping(PoolId poolId =&gt; AsyncFiller.State) public asyncOrders
+</code></pre>
+<h3 id="owner"><a class="header" href="#owner">owner</a></h3>
+<p>Protocol owner authorized to collect vault fees and sweep stranded balances.</p>
+<pre><code class="language-solidity">address public owner
+</code></pre>
+<h3 id="pendingowner"><a class="header" href="#pendingowner">pendingOwner</a></h3>
+<p>Address nominated by <code>transferOwnership</code>; becomes owner on <code>acceptOwnership</code>.</p>
+<pre><code class="language-solidity">address public pendingOwner
+</code></pre>
+<h3 id="feevault"><a class="header" href="#feevault">feeVault</a></h3>
+<p>Holds fee claims separately from open-order escrow.</p>
+<pre><code class="language-solidity">FeeVault public immutable feeVault
+</code></pre>
+<h3 id="numeraire"><a class="header" href="#numeraire">numeraire</a></h3>
+<p>Chain-specific USDC address. Every pool must include this exact currency.</p>
+<pre><code class="language-solidity">Currency public immutable numeraire
+</code></pre>
+<h3 id="nonceused"><a class="header" href="#nonceused">nonceUsed</a></h3>
+<p>Unordered nonces consumed by signed maker actions (<code>setExecutorWithSig</code>, <code>updatePriceWithSig</code>).</p>
+<pre><code class="language-solidity">mapping(address maker =&gt; mapping(uint256 nonce =&gt; bool)) public nonceUsed
+</code></pre>
+<h3 id="pending_native_deposit_slot"><a class="header" href="#pending_native_deposit_slot">PENDING_NATIVE_DEPOSIT_SLOT</a></h3>
+<p>Transient slot — keccak256("asyncswap.hook.pendingNativeDeposit") - 1.
+Tracks ETH deposited to this contract within the current tx via
+<code>receive()</code>, so <code>executeOrder</code> can settle native output only out of
+the filler's just-received deposit rather than the contract's
+accumulated balance (which may include donations, stranded ETH,
+or in-flight native-input escrow). Cleared after each settle.</p>
+<pre><code class="language-solidity">bytes32 constant PENDING_NATIVE_DEPOSIT_SLOT = 0x9c2a7e4f3b1d8a5c6e0f2d4b7a9c1e3d5f8b6a0c2e4d7b9f1a3c5e7d9b1f3a50
+</code></pre>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<h3 id="onlyowner"><a class="header" href="#onlyowner">onlyOwner</a></h3>
+<p>Restricts a call to the protocol owner.</p>
+<pre><code class="language-solidity">modifier onlyOwner() ;
+</code></pre>
+<h3 id="constructor"><a class="header" href="#constructor">constructor</a></h3>
+<pre><code class="language-solidity">constructor(IPoolManager _poolManager, Currency _numeraire, address _owner)
+    BaseHook(_poolManager)
+    EIP712("AsyncSwap", "1");
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>_poolManager</code></td><td><code>IPoolManager</code></td><td></td></tr>
+<tr><td><code>_numeraire</code></td><td><code>Currency</code></td><td></td></tr>
+<tr><td><code>_owner</code></td><td><code>address</code></td><td>Explicit protocol owner. Not <code>msg.sender</code>: CREATE2 deployments run the constructor from the deterministic deployer, which could never act as owner.</td></tr>
+</tbody></table>
+</div>
+<h3 id="transferownership"><a class="header" href="#transferownership">transferOwnership</a></h3>
+<p>Start a two-step ownership transfer. The deployer (or a factory) should call this after
+deployment to hand control to the intended fee recipient / governance address, which
+then calls <code>acceptOwnership</code>.</p>
+<pre><code class="language-solidity">function transferOwnership(address newOwner) external onlyOwner;
+</code></pre>
+<h3 id="acceptownership"><a class="header" href="#acceptownership">acceptOwnership</a></h3>
+<p>Complete a two-step ownership transfer. Only the nominated <code>pendingOwner</code> may call.</p>
+<pre><code class="language-solidity">function acceptOwnership() external;
+</code></pre>
+<h3 id="sweep"><a class="header" href="#sweep">sweep</a></h3>
+<p>Sweep an accumulated balance of <code>currency</code> held by this hook to <code>to</code>.</p>
+<p>Between transactions the hook's raw balance holds only stranded funds or donations;
+fees belong to feeVault. Maker input is escrowed as ERC-6909
+claims in the PoolManager, and the transient native-deposit ledger is cleared at the
+end of every tx, so no per-order escrow lives in the hook's balance across calls.</p>
+<pre><code class="language-solidity">function sweep(Currency currency, address to) external onlyOwner;
+</code></pre>
+<h3 id="_beforeinitialize"><a class="header" href="#_beforeinitialize">_beforeInitialize</a></h3>
+<pre><code class="language-solidity">function _beforeInitialize(address, PoolKey calldata key, uint160) internal virtual override returns (bytes4);
+</code></pre>
+<h3 id="gethookpermissions"><a class="header" href="#gethookpermissions">getHookPermissions</a></h3>
+<p>Returns a struct of permissions to signal which hook functions are to be implemented</p>
+<p>Used at deployment to validate the address correctly represents the expected permissions</p>
+<pre><code class="language-solidity">function getHookPermissions() public pure override returns (Hooks.Permissions memory);
+</code></pre>
+<h3 id="_beforeaddliquidity"><a class="header" href="#_beforeaddliquidity">_beforeAddLiquidity</a></h3>
+<pre><code class="language-solidity">function _beforeAddLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
+    internal
+    pure
+    override
+    returns (bytes4);
+</code></pre>
+<h3 id="asyncorder"><a class="header" href="#asyncorder">asyncOrder</a></h3>
+<p>Read an order's currently-open input amount. Returns 0 if the order does not exist.</p>
+<pre><code class="language-solidity">function asyncOrder(PoolId poolId, bytes32 orderId) external view returns (uint256 amountIn);
+</code></pre>
+<h3 id="asyncorderinfo"><a class="header" href="#asyncorderinfo">asyncOrderInfo</a></h3>
+<p>Read both legs of an open order. Returns (0, 0) if the order does not exist.</p>
+<pre><code class="language-solidity">function asyncOrderInfo(PoolId poolId, bytes32 orderId)
+    external
+    view
+    returns (uint256 amountIn, uint256 amountOutMin);
+</code></pre>
+<h3 id="isexecutor"><a class="header" href="#isexecutor">isExecutor</a></h3>
+<pre><code class="language-solidity">function isExecutor(PoolId poolId, address maker, address executor) external view returns (bool);
+</code></pre>
+<h3 id="calculatehookfee"><a class="header" href="#calculatehookfee">calculateHookFee</a></h3>
+<pre><code class="language-solidity">function calculateHookFee(uint256) public pure returns (uint256);
+</code></pre>
+<h3 id="calculatepoolfee"><a class="header" href="#calculatepoolfee">calculatePoolFee</a></h3>
+<p>Fee added to the maker's net output: 0.2% of gross output, rounded down.</p>
+<pre><code class="language-solidity">function calculatePoolFee(uint24, uint256 amount) public pure virtual returns (uint256);
+</code></pre>
+<h3 id="executeorder"><a class="header" href="#executeorder">executeOrder</a></h3>
+<p>Fill <code>order</code> in full. Must be called from an authorized executor (router) that has
+already paid the filler's gross output within the same unlock: for ERC20 output via
+<code>PoolManager.settleFor(hook)</code>, for native output by sending ETH to this hook.</p>
+<pre><code class="language-solidity">function executeOrder(AsyncOrder calldata order, bytes calldata data) external;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>order</code></td><td><code>AsyncOrder</code></td><td></td></tr>
+<tr><td><code>data</code></td><td><code>bytes</code></td><td>abi.encode(filler) — the address that should receive the maker's input.</td></tr>
+</tbody></table>
+</div>
+<h3 id="updateprice"><a class="header" href="#updateprice">updatePrice</a></h3>
+<p>Maker updates the limit price of an unfilled order. Direct call from the maker —
+pure state mutation, no PM interaction, so no unlock or router needed.</p>
+<pre><code class="language-solidity">function updatePrice(AsyncOrder calldata order, uint256 newAmountOutMin) external;
+</code></pre>
+<h3 id="cancelorder"><a class="header" href="#cancelorder">cancelOrder</a></h3>
+<p>Maker cancels an unfilled order. Must be called via an authorized executor inside
+an <code>IPoolManager.unlock</code> context. The executor must have asserted maker identity.</p>
+<pre><code class="language-solidity">function cancelOrder(AsyncOrder calldata order) external;
+</code></pre>
+<h3 id="_beforeswap"><a class="header" href="#_beforeswap">_beforeSwap</a></h3>
+<pre><code class="language-solidity">function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookParams)
+    internal
+    override
+    returns (bytes4, BeforeSwapDelta, uint24);
+</code></pre>
+<h3 id="_createorder"><a class="header" href="#_createorder">_createOrder</a></h3>
+<p>Extracted to keep <code>_beforeSwap</code> stack-shallow.</p>
+<pre><code class="language-solidity">function _createOrder(PoolId poolId, bool zeroForOne, uint256 amountIn, UserParams memory hookData) private;
+</code></pre>
+<h3 id="setexecutor"><a class="header" href="#setexecutor">setExecutor</a></h3>
+<p>Maker explicitly authorises an executor (typically the Router) to submit
+and fill orders on their behalf. Without this grant, <code>_createOrder</code> reverts
+on the maker's first swap. Pass <code>allow = false</code> to revoke an executor.</p>
+<pre><code class="language-solidity">function setExecutor(PoolId poolId, address executor, bool allow) external;
+</code></pre>
+<h3 id="setexecutorwithsig"><a class="header" href="#setexecutorwithsig">setExecutorWithSig</a></h3>
+<p>Signed <code>setExecutor</code>: anyone may submit the maker's EIP-712 <code>SetExecutor</code> grant.
+Lets a relayer authorize the Router before the maker's first gasless order on a pool.</p>
+<pre><code class="language-solidity">function setExecutorWithSig(
+    PoolKey calldata key,
+    address maker,
+    address executor,
+    bool allow,
+    uint256 nonce,
+    uint256 deadline,
+    bytes calldata signature
+) external;
+</code></pre>
+<h3 id="updatepricewithsig"><a class="header" href="#updatepricewithsig">updatePriceWithSig</a></h3>
+<p>Signed <code>updatePrice</code>: anyone may submit the maker's EIP-712 <code>UpdatePrice</code> message.</p>
+<pre><code class="language-solidity">function updatePriceWithSig(
+    AsyncOrder calldata order,
+    uint256 newAmountOutMin,
+    uint256 nonce,
+    uint256 deadline,
+    bytes calldata signature
+) external;
+</code></pre>
+<h3 id="invalidatenonce"><a class="header" href="#invalidatenonce">invalidateNonce</a></h3>
+<p>Revoke a signed action before a relayer submits it.</p>
+<pre><code class="language-solidity">function invalidateNonce(uint256 nonce) external;
+</code></pre>
+<h3 id="domain_separator"><a class="header" href="#domain_separator">DOMAIN_SEPARATOR</a></h3>
+<p>EIP-712 domain separator for this hook's signed actions.</p>
+<pre><code class="language-solidity">function DOMAIN_SEPARATOR() external view returns (bytes32);
+</code></pre>
+<h3 id="_verify"><a class="header" href="#_verify">_verify</a></h3>
+<p>Checks deadline, burns the nonce, then validates an EOA or ERC-1271 signature.</p>
+<pre><code class="language-solidity">function _verify(address maker, bytes32 structHash, uint256 nonce, uint256 deadline, bytes calldata signature)
+    private;
+</code></pre>
+<h3 id="receive"><a class="header" href="#receive">receive</a></h3>
+<p>Accept ETH transfers. The Router (or any caller paying for a native-output
+fill) forwards <code>msg.value</code> to the hook before triggering <code>executeOrder</code>. The hook
+records the deposit on a transient slot so <code>executeOrder</code> can settle ONLY against
+the filler's freshly-deposited ETH — never against donated, stranded, or in-flight
+escrow balance. Plain transfers (no executeOrder follow-up) just sit in balance
+and can be returned by recovery flows; they cannot be drained via fillOrder.</p>
+<pre><code class="language-solidity">receive() external payable;
+</code></pre>
+<h2 id="events"><a class="header" href="#events">Events</a></h2>
+<h3 id="hookswap"><a class="header" href="#hookswap">HookSwap</a></h3>
+<p>Pool-level swap-event mirror; bytes32 poolId for indexer compatibility.</p>
+<p>See https://github.com/OpenZeppelin/uniswap-hooks BaseAsyncSwap for the source pattern.</p>
+<pre><code class="language-solidity">event HookSwap(
+    bytes32 indexed id,
+    address indexed sender,
+    int128 amount0,
+    int128 amount1,
+    uint128 hookLPfeeAmount0,
+    uint128 hookLPfeeAmount1
+);
+</code></pre>
+<h3 id="ownershiptransferred"><a class="header" href="#ownershiptransferred">OwnershipTransferred</a></h3>
+<p>Emitted when ownership is transferred.</p>
+<pre><code class="language-solidity">event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+</code></pre>
+<h3 id="ownershiptransferstarted"><a class="header" href="#ownershiptransferstarted">OwnershipTransferStarted</a></h3>
+<p>Emitted when the owner nominates a new owner.</p>
+<pre><code class="language-solidity">event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+</code></pre>
+<h3 id="swept"><a class="header" href="#swept">Swept</a></h3>
+<p>Emitted when the owner sweeps an accumulated balance.</p>
+<pre><code class="language-solidity">event Swept(Currency indexed currency, address indexed to, uint256 amount);
+</code></pre>
+<h3 id="nonceinvalidated"><a class="header" href="#nonceinvalidated">NonceInvalidated</a></h3>
+<p>Emitted when a maker burns a nonce, consumed or revoked.</p>
+<pre><code class="language-solidity">event NonceInvalidated(address indexed maker, uint256 nonce);
+</code></pre>
+<h3 id="executorset"><a class="header" href="#executorset">ExecutorSet</a></h3>
+<p>Emitted after each successful direct or signed executor authorization update.</p>
+<p><code>allow</code> is the resulting permission, including when the value is unchanged.</p>
+<pre><code class="language-solidity">event ExecutorSet(PoolId indexed poolId, address indexed maker, address indexed executor, bool allow);
+</code></pre>
+<h2 id="errors"><a class="header" href="#errors">Errors</a></h2>
+<h3 id="unsupportedliquidity"><a class="header" href="#unsupportedliquidity">UnsupportedLiquidity</a></h3>
+<pre><code class="language-solidity">error UnsupportedLiquidity();
+</code></pre>
+<h3 id="exactinputonly"><a class="header" href="#exactinputonly">ExactInputOnly</a></h3>
+<pre><code class="language-solidity">error ExactInputOnly();
+</code></pre>
+<h3 id="unaccountednativeoutput"><a class="header" href="#unaccountednativeoutput">UnaccountedNativeOutput</a></h3>
+<pre><code class="language-solidity">error UnaccountedNativeOutput();
+</code></pre>
+<h3 id="notowner"><a class="header" href="#notowner">NotOwner</a></h3>
+<pre><code class="language-solidity">error NotOwner();
+</code></pre>
+<h3 id="zeroaddress"><a class="header" href="#zeroaddress">ZeroAddress</a></h3>
+<pre><code class="language-solidity">error ZeroAddress();
+</code></pre>
+<h3 id="signatureexpired"><a class="header" href="#signatureexpired">SignatureExpired</a></h3>
+<pre><code class="language-solidity">error SignatureExpired();
+</code></pre>
+<h3 id="invalidsignature"><a class="header" href="#invalidsignature">InvalidSignature</a></h3>
+<pre><code class="language-solidity">error InvalidSignature();
+</code></pre>
+<h3 id="noncealreadyused"><a class="header" href="#noncealreadyused">NonceAlreadyUsed</a></h3>
+<pre><code class="language-solidity">error NonceAlreadyUsed();
+</code></pre>
+<h3 id="invalidnumeraire"><a class="header" href="#invalidnumeraire">InvalidNumeraire</a></h3>
+<pre><code class="language-solidity">error InvalidNumeraire();
+</code></pre>
+<h3 id="numerairerequired"><a class="header" href="#numerairerequired">NumeraireRequired</a></h3>
+<pre><code class="language-solidity">error NumeraireRequired();
+</code></pre>
+<h3 id="dynamicfeerequired"><a class="header" href="#dynamicfeerequired">DynamicFeeRequired</a></h3>
+<pre><code class="language-solidity">error DynamicFeeRequired();
+</code></pre>
+<h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
+<h3 id="userparams"><a class="header" href="#userparams">UserParams</a></h3>
+<p>Hook params decoded from the <code>hookData</code> of <code>IPoolManager.swap</code>. The maker sets
+<code>amountOutMin</code> (their limit price); <code>executor</code> is the address authorized to call fill.
+Salt is contract-assigned at create time (see <code>_createOrder</code>) and emitted in
+<code>AsyncOrderCreated</code> — the maker fetches it from the event log to reference the
+order in cancel / updatePrice later.</p>
+<pre><code class="language-solidity">struct UserParams {
+    address user;
+    address executor;
+    uint256 amountOutMin;
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../src/types/AsyncOrder.sol/library.AsyncOrderLibrary.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../src/BaseHook.sol/abstract.BaseHook.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../src/types/AsyncOrder.sol/library.AsyncOrderLibrary.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../src/BaseHook.sol/abstract.BaseHook.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../solidity.min.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

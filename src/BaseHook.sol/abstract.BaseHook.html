@@ -1,0 +1,558 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>BaseHook</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../../book.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asyncswap/protocol" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="basehook"><a class="header" href="#basehook">BaseHook</a></h1>
+<p><a href="https://github.com/asyncswap/protocol/blob/08d1e49118ddd2c12308bc772b67d1f041601249/src/BaseHook.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+IHooks, <a href="/src/ImmutableState.sol/contract.ImmutableState.html">ImmutableState</a></p>
+<p><strong>Title:</strong>
+Base Hook</p>
+<p>abstract contract for hook implementations</p>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<h3 id="constructor"><a class="header" href="#constructor">constructor</a></h3>
+<pre><code class="language-solidity">constructor(IPoolManager _manager) ImmutableState(_manager);
+</code></pre>
+<h3 id="gethookpermissions"><a class="header" href="#gethookpermissions">getHookPermissions</a></h3>
+<p>Returns a struct of permissions to signal which hook functions are to be implemented</p>
+<p>Used at deployment to validate the address correctly represents the expected permissions</p>
+<pre><code class="language-solidity">function getHookPermissions() public pure virtual returns (Hooks.Permissions memory);
+</code></pre>
+<h3 id="validatehookaddress"><a class="header" href="#validatehookaddress">validateHookAddress</a></h3>
+<p>Validates the deployed hook address agrees with the expected permissions of the hook</p>
+<p>this function is virtual so that we can override it during testing,
+which allows us to deploy an implementation to any address
+and then etch the bytecode into the correct address</p>
+<pre><code class="language-solidity">function validateHookAddress(BaseHook _this) internal pure virtual;
+</code></pre>
+<h3 id="beforeinitialize"><a class="header" href="#beforeinitialize">beforeInitialize</a></h3>
+<p>The hook called before the state of a pool is initialized</p>
+<pre><code class="language-solidity">function beforeInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96)
+    external
+    onlyPoolManager
+    returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the initialize call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool being initialized</td></tr>
+<tr><td><code>sqrtPriceX96</code></td><td><code>uint160</code></td><td>The sqrt(price) of the pool as a Q64.96</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforeinitialize"><a class="header" href="#_beforeinitialize">_beforeInitialize</a></h3>
+<pre><code class="language-solidity">function _beforeInitialize(address, PoolKey calldata, uint160) internal virtual returns (bytes4);
+</code></pre>
+<h3 id="afterinitialize"><a class="header" href="#afterinitialize">afterInitialize</a></h3>
+<p>The hook called after the state of a pool is initialized</p>
+<pre><code class="language-solidity">function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96, int24 tick)
+    external
+    onlyPoolManager
+    returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the initialize call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool being initialized</td></tr>
+<tr><td><code>sqrtPriceX96</code></td><td><code>uint160</code></td><td>The sqrt(price) of the pool as a Q64.96</td></tr>
+<tr><td><code>tick</code></td><td><code>int24</code></td><td>The current tick after the state of a pool is initialized</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+</tbody></table>
+</div>
+<h3 id="_afterinitialize"><a class="header" href="#_afterinitialize">_afterInitialize</a></h3>
+<pre><code class="language-solidity">function _afterInitialize(address, PoolKey calldata, uint160, int24) internal virtual returns (bytes4);
+</code></pre>
+<h3 id="beforeaddliquidity"><a class="header" href="#beforeaddliquidity">beforeAddLiquidity</a></h3>
+<p>The hook called before liquidity is added</p>
+<pre><code class="language-solidity">function beforeAddLiquidity(
+    address sender,
+    PoolKey calldata key,
+    ModifyLiquidityParams calldata params,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the add liquidity call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>params</code></td><td><code>ModifyLiquidityParams</code></td><td>The parameters for adding liquidity</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the liquidity provider to be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforeaddliquidity"><a class="header" href="#_beforeaddliquidity">_beforeAddLiquidity</a></h3>
+<pre><code class="language-solidity">function _beforeAddLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
+    internal
+    virtual
+    returns (bytes4);
+</code></pre>
+<h3 id="beforeremoveliquidity"><a class="header" href="#beforeremoveliquidity">beforeRemoveLiquidity</a></h3>
+<p>The hook called before liquidity is removed</p>
+<pre><code class="language-solidity">function beforeRemoveLiquidity(
+    address sender,
+    PoolKey calldata key,
+    ModifyLiquidityParams calldata params,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the remove liquidity call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>params</code></td><td><code>ModifyLiquidityParams</code></td><td>The parameters for removing liquidity</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the liquidity provider to be be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforeremoveliquidity"><a class="header" href="#_beforeremoveliquidity">_beforeRemoveLiquidity</a></h3>
+<pre><code class="language-solidity">function _beforeRemoveLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
+    internal
+    virtual
+    returns (bytes4);
+</code></pre>
+<h3 id="afteraddliquidity"><a class="header" href="#afteraddliquidity">afterAddLiquidity</a></h3>
+<p>The hook called after liquidity is added</p>
+<pre><code class="language-solidity">function afterAddLiquidity(
+    address sender,
+    PoolKey calldata key,
+    ModifyLiquidityParams calldata params,
+    BalanceDelta delta,
+    BalanceDelta feesAccrued,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4, BalanceDelta);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the add liquidity call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>params</code></td><td><code>ModifyLiquidityParams</code></td><td>The parameters for adding liquidity</td></tr>
+<tr><td><code>delta</code></td><td><code>BalanceDelta</code></td><td>The caller's balance delta after adding liquidity; the sum of principal delta, fees accrued, and hook delta</td></tr>
+<tr><td><code>feesAccrued</code></td><td><code>BalanceDelta</code></td><td>The fees accrued since the last time fees were collected from this position</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the liquidity provider to be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>BalanceDelta</code></td><td>BalanceDelta The hook's delta in token0 and token1. Positive: the hook is owed/took currency, negative: the hook owes/sent currency</td></tr>
+</tbody></table>
+</div>
+<h3 id="_afteraddliquidity"><a class="header" href="#_afteraddliquidity">_afterAddLiquidity</a></h3>
+<pre><code class="language-solidity">function _afterAddLiquidity(
+    address,
+    PoolKey calldata,
+    ModifyLiquidityParams calldata,
+    BalanceDelta,
+    BalanceDelta,
+    bytes calldata
+) internal virtual returns (bytes4, BalanceDelta);
+</code></pre>
+<h3 id="afterremoveliquidity"><a class="header" href="#afterremoveliquidity">afterRemoveLiquidity</a></h3>
+<p>The hook called after liquidity is removed</p>
+<pre><code class="language-solidity">function afterRemoveLiquidity(
+    address sender,
+    PoolKey calldata key,
+    ModifyLiquidityParams calldata params,
+    BalanceDelta delta,
+    BalanceDelta feesAccrued,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4, BalanceDelta);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the remove liquidity call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>params</code></td><td><code>ModifyLiquidityParams</code></td><td>The parameters for removing liquidity</td></tr>
+<tr><td><code>delta</code></td><td><code>BalanceDelta</code></td><td>The caller's balance delta after removing liquidity; the sum of principal delta, fees accrued, and hook delta</td></tr>
+<tr><td><code>feesAccrued</code></td><td><code>BalanceDelta</code></td><td>The fees accrued since the last time fees were collected from this position</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the liquidity provider to be be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>BalanceDelta</code></td><td>BalanceDelta The hook's delta in token0 and token1. Positive: the hook is owed/took currency, negative: the hook owes/sent currency</td></tr>
+</tbody></table>
+</div>
+<h3 id="_afterremoveliquidity"><a class="header" href="#_afterremoveliquidity">_afterRemoveLiquidity</a></h3>
+<pre><code class="language-solidity">function _afterRemoveLiquidity(
+    address,
+    PoolKey calldata,
+    ModifyLiquidityParams calldata,
+    BalanceDelta,
+    BalanceDelta,
+    bytes calldata
+) internal virtual returns (bytes4, BalanceDelta);
+</code></pre>
+<h3 id="beforeswap"><a class="header" href="#beforeswap">beforeSwap</a></h3>
+<p>The hook called before a swap</p>
+<pre><code class="language-solidity">function beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
+    external
+    onlyPoolManager
+    returns (bytes4, BeforeSwapDelta, uint24);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the swap call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>params</code></td><td><code>SwapParams</code></td><td>The parameters for the swap</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the swapper to be be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>BeforeSwapDelta</code></td><td>BeforeSwapDelta The hook's delta in specified and unspecified currencies. Positive: the hook is owed/took currency, negative: the hook owes/sent currency</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>uint24</code></td><td>uint24 Optionally override the lp fee, only used if three conditions are met: 1. the Pool has a dynamic fee, 2. the value's 2nd highest bit is set (23rd bit, 0x400000), and 3. the value is less than or equal to the maximum fee (1 million)</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforeswap"><a class="header" href="#_beforeswap">_beforeSwap</a></h3>
+<pre><code class="language-solidity">function _beforeSwap(address, PoolKey calldata, SwapParams calldata, bytes calldata)
+    internal
+    virtual
+    returns (bytes4, BeforeSwapDelta, uint24);
+</code></pre>
+<h3 id="afterswap"><a class="header" href="#afterswap">afterSwap</a></h3>
+<p>The hook called after a swap</p>
+<pre><code class="language-solidity">function afterSwap(
+    address sender,
+    PoolKey calldata key,
+    SwapParams calldata params,
+    BalanceDelta delta,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4, int128);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the swap call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>params</code></td><td><code>SwapParams</code></td><td>The parameters for the swap</td></tr>
+<tr><td><code>delta</code></td><td><code>BalanceDelta</code></td><td>The amount owed to the caller (positive) or owed to the pool (negative)</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the swapper to be be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>int128</code></td><td>int128 The hook's delta in unspecified currency. Positive: the hook is owed/took currency, negative: the hook owes/sent currency</td></tr>
+</tbody></table>
+</div>
+<h3 id="_afterswap"><a class="header" href="#_afterswap">_afterSwap</a></h3>
+<pre><code class="language-solidity">function _afterSwap(address, PoolKey calldata, SwapParams calldata, BalanceDelta, bytes calldata)
+    internal
+    virtual
+    returns (bytes4, int128);
+</code></pre>
+<h3 id="beforedonate"><a class="header" href="#beforedonate">beforeDonate</a></h3>
+<p>The hook called before donate</p>
+<pre><code class="language-solidity">function beforeDonate(
+    address sender,
+    PoolKey calldata key,
+    uint256 amount0,
+    uint256 amount1,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the donate call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>amount0</code></td><td><code>uint256</code></td><td>The amount of token0 being donated</td></tr>
+<tr><td><code>amount1</code></td><td><code>uint256</code></td><td>The amount of token1 being donated</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the donor to be be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforedonate"><a class="header" href="#_beforedonate">_beforeDonate</a></h3>
+<pre><code class="language-solidity">function _beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
+    internal
+    virtual
+    returns (bytes4);
+</code></pre>
+<h3 id="afterdonate"><a class="header" href="#afterdonate">afterDonate</a></h3>
+<p>The hook called after donate</p>
+<pre><code class="language-solidity">function afterDonate(
+    address sender,
+    PoolKey calldata key,
+    uint256 amount0,
+    uint256 amount1,
+    bytes calldata hookData
+) external onlyPoolManager returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sender</code></td><td><code>address</code></td><td>The initial msg.sender for the donate call</td></tr>
+<tr><td><code>key</code></td><td><code>PoolKey</code></td><td>The key for the pool</td></tr>
+<tr><td><code>amount0</code></td><td><code>uint256</code></td><td>The amount of token0 being donated</td></tr>
+<tr><td><code>amount1</code></td><td><code>uint256</code></td><td>The amount of token1 being donated</td></tr>
+<tr><td><code>hookData</code></td><td><code>bytes</code></td><td>Arbitrary data handed into the PoolManager by the donor to be be passed on to the hook</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes4</code></td><td>bytes4 The function selector for the hook</td></tr>
+</tbody></table>
+</div>
+<h3 id="_afterdonate"><a class="header" href="#_afterdonate">_afterDonate</a></h3>
+<pre><code class="language-solidity">function _afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
+    internal
+    virtual
+    returns (bytes4);
+</code></pre>
+<h2 id="errors"><a class="header" href="#errors">Errors</a></h2>
+<h3 id="hooknotimplemented"><a class="header" href="#hooknotimplemented">HookNotImplemented</a></h3>
+<pre><code class="language-solidity">error HookNotImplemented();
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../src/AsyncSwap.sol/contract.AsyncSwap.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../src/FeeVault.sol/interface.IFeeOwner.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../src/AsyncSwap.sol/contract.AsyncSwap.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../src/FeeVault.sol/interface.IFeeOwner.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../solidity.min.js"></script>
+
+
+
+    </div>
+    </body>
+</html>
