@@ -114,6 +114,38 @@ contract SignedOrdersTest is SetupHook {
         return _orderIdFor(order.owner, order.zeroForOne, order.salt);
     }
 
+    /* ------------------------- executor authorization ------------------------- */
+
+    function test_setExecutorWithSig_emitsGrantForMaker() public {
+        Router.ExecutorGrant memory grant = _grant(7);
+
+        vm.expectEmit(true, true, true, true, address(hook));
+        emit AsyncSwap.ExecutorSet(poolId, maker, address(router), true);
+        vm.prank(relayer);
+        hook.setExecutorWithSig(key, maker, address(router), true, grant.nonce, grant.deadline, grant.signature);
+
+        assertTrue(hook.isExecutor(poolId, maker, address(router)), "maker authorized executor");
+        assertFalse(hook.isExecutor(poolId, relayer, address(router)), "relayer did not authorize executor");
+        assertTrue(hook.nonceUsed(maker, grant.nonce), "nonce consumed");
+    }
+
+    function test_setExecutorWithSig_emitsRevocationForMaker() public {
+        vm.prank(maker);
+        hook.setExecutor(poolId, address(router), true);
+        uint256 nonce = 7;
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 structHash = OrderSignatures.hashSetExecutor(key, maker, address(router), false, nonce, deadline);
+        bytes memory signature = _sign(_digest(hook.DOMAIN_SEPARATOR(), structHash));
+
+        vm.expectEmit(true, true, true, true, address(hook));
+        emit AsyncSwap.ExecutorSet(poolId, maker, address(router), false);
+        vm.prank(relayer);
+        hook.setExecutorWithSig(key, maker, address(router), false, nonce, deadline, signature);
+
+        assertFalse(hook.isExecutor(poolId, maker, address(router)), "maker revoked executor");
+        assertTrue(hook.nonceUsed(maker, nonce), "nonce consumed");
+    }
+
     /* --------------------------------- create ---------------------------------- */
 
     function test_swapWithSig_relayerCreatesOrder_andGrantsExecutor() public {

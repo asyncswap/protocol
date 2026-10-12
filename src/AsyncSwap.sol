@@ -86,6 +86,10 @@ contract AsyncSwap is BaseHook, EIP712 {
     /// @notice Emitted when a maker burns a nonce, consumed or revoked.
     event NonceInvalidated(address indexed maker, uint256 nonce);
 
+    /// @notice Emitted after each successful direct or signed executor authorization update.
+    /// @dev `allow` is the resulting permission, including when the value is unchanged.
+    event ExecutorSet(PoolId indexed poolId, address indexed maker, address indexed executor, bool allow);
+
     /// @notice Restricts a call to the protocol owner.
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -325,6 +329,7 @@ contract AsyncSwap is BaseHook, EIP712 {
     ///         on the maker's first swap. Pass `allow = false` to revoke an executor.
     function setExecutor(PoolId poolId, address executor, bool allow) external {
         asyncOrders[poolId].isExecutor[msg.sender][executor] = allow;
+        emit ExecutorSet(poolId, msg.sender, executor, allow);
     }
 
     /// @notice Signed `setExecutor`: anyone may submit the maker's EIP-712 `SetExecutor` grant.
@@ -345,7 +350,9 @@ contract AsyncSwap is BaseHook, EIP712 {
             deadline,
             signature
         );
-        asyncOrders[key.toId()].isExecutor[maker][executor] = allow;
+        PoolId poolId = key.toId();
+        asyncOrders[poolId].isExecutor[maker][executor] = allow;
+        emit ExecutorSet(poolId, maker, executor, allow);
     }
 
     /// @notice Signed `updatePrice`: anyone may submit the maker's EIP-712 `UpdatePrice` message.

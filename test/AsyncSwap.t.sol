@@ -44,6 +44,29 @@ contract AsyncSwapTest is SetupHook {
         return order;
     }
 
+    /* ------------------------- executor authorization ------------------------- */
+
+    function test_setExecutor_emitsGrant() public {
+        address executor = makeAddr("executor");
+
+        vm.expectEmit(true, true, true, true, address(hook));
+        emit AsyncSwap.ExecutorSet(poolId, alice, executor, true);
+        vm.prank(alice);
+        hook.setExecutor(poolId, executor, true);
+
+        assertTrue(hook.isExecutor(poolId, alice, executor), "executor authorized");
+    }
+
+    function test_setExecutor_emitsRevocation() public {
+        // topUp authorizes the Router for alice during setup.
+        vm.expectEmit(true, true, true, true, address(hook));
+        emit AsyncSwap.ExecutorSet(poolId, alice, address(router), false);
+        vm.prank(alice);
+        hook.setExecutor(poolId, address(router), false);
+
+        assertFalse(hook.isExecutor(poolId, alice, address(router)), "executor revoked");
+    }
+
     /* --------------------------------- create --------------------------------- */
 
     function test_swap_createsOrderWithPrice() public {
