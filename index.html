@@ -182,17 +182,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="asyncswap-protocol"><a class="header" href="#asyncswap-protocol">AsyncSwap Protocol</a></h1>
-<p>AsyncSwap is a peer-to-peer order protocol built as a Uniswap v4 hook. A maker
-posts a full-fill order; a filler can settle it when the maker's limit is met.
-The maker signs the order terms and submits the transaction from their wallet.
-There is no relayer requirement.</p>
+<p>AsyncSwap adds on-chain limit orders to Uniswap v4. A maker specifies the input
+amount and minimum output, then creates an order against a pool. Another
+participant can fill it when the terms meet their needs; the Router and hook
+settle the trade on-chain. Orders currently fill in full, and makers can update
+the limit price or cancel an order while it remains open.</p>
 <h2 id="contract-rules"><a class="header" href="#contract-rules">Contract rules</a></h2>
 <ul>
 <li><strong>Full fills only.</strong> Partial fills are planned for a future version.</li>
 <li><strong>USDC numeraire.</strong> Every pool using an AsyncSwap hook must pair one asset with
 that deployment's configured USDC. This rule applies to anyone initializing a
 pool with the hook; unrelated v4 pools are unaffected.</li>
-<li><strong>0.2% protocol fee.</strong> The fee is taken from gross output on successful fills.
+<li><strong>0.3% protocol fee.</strong> The fee is taken from gross output on successful fills.
 The maker's signed minimum is net of the fee; creation and cancellation have
 no protocol fee.</li>
 <li><strong>Signed actions.</strong> EIP-712 signatures support create, authorize, reprice, and
@@ -218,7 +219,8 @@ forge fmt --check
 existing addresses in <code>deployments/130/130.json</code> may refer to an earlier version;
 the current source changes require a new hook and Router deployment, followed
 by initialization of new pools. Existing pools and open orders remain on their
-current hook.</p>
+current hook. The 0.3% fee in this source applies only to hooks deployed from
+this version; already deployed hooks retain their existing fee.</p>
 <ul>
 <li><a href="docs/DEPLOYMENT.html">Deployment runbook</a> — inputs, preflight, broadcast, and pool initialization.</li>
 <li><a href="script/config/chains.json">Chain configuration</a> — configured networks and readiness.</li>
