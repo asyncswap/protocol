@@ -30,7 +30,7 @@ assets with other decimal scales retain their independent base-unit amounts.
 Quotes, oracle selection, stale-price checks, and RWA issuer restrictions remain
 separate concerns. The hook enforces maker-selected net output amounts.
 
-The 0.2% fee remains denominated in the filled output, not necessarily USDC.
+The 0.3% fee remains denominated in the filled output, not necessarily USDC.
 Changing fee denomination would require a separate design. Automatic cross-pool
 asset-to-asset routing and cross-chain settlement are also outside this change.
 

@@ -142,8 +142,8 @@ contract NumeraireTest is Test {
         MockERC20 input = buyAsset ? usdc : asset;
         MockERC20 output = buyAsset ? asset : usdc;
         uint256 amountIn = buyAsset ? 100e6 : 1 ether;
-        uint256 netOutput = buyAsset ? 1 ether : 99_800_000;
-        uint256 fee = netOutput / 499;
+        uint256 netOutput = buyAsset ? 1 ether : 99_700_000;
+        uint256 fee = (netOutput / 997) * 3 + ((netOutput % 997) * 3) / 997;
         uint256 grossOutput = netOutput + fee;
         bool direction = Currency.unwrap(key.currency0) == address(input);
         AsyncOrder memory order = AsyncOrder(key, maker, direction, amountIn, netOutput, 2 ** 96, bytes32(0));

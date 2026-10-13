@@ -1,9 +1,10 @@
 # AsyncSwap Protocol
 
-AsyncSwap is a peer-to-peer order protocol built as a Uniswap v4 hook. A maker
-posts a full-fill order; a filler can settle it when the maker's limit is met.
-The maker signs the order terms and submits the transaction from their wallet.
-There is no relayer requirement.
+AsyncSwap adds on-chain limit orders to Uniswap v4. A maker specifies the input
+amount and minimum output, then creates an order against a pool. Another
+participant can fill it when the terms meet their needs; the Router and hook
+settle the trade on-chain. Orders currently fill in full, and makers can update
+the limit price or cancel an order while it remains open.
 
 ## Contract rules
 
@@ -11,7 +12,7 @@ There is no relayer requirement.
 - **USDC numeraire.** Every pool using an AsyncSwap hook must pair one asset with
   that deployment's configured USDC. This rule applies to anyone initializing a
   pool with the hook; unrelated v4 pools are unaffected.
-- **0.2% protocol fee.** The fee is taken from gross output on successful fills.
+- **0.3% protocol fee.** The fee is taken from gross output on successful fills.
   The maker's signed minimum is net of the fee; creation and cancellation have
   no protocol fee.
 - **Signed actions.** EIP-712 signatures support create, authorize, reprice, and
@@ -41,7 +42,8 @@ The checked deployment flow currently targets Unichain mainnet only. The
 existing addresses in `deployments/130/130.json` may refer to an earlier version;
 the current source changes require a new hook and Router deployment, followed
 by initialization of new pools. Existing pools and open orders remain on their
-current hook.
+current hook. The 0.3% fee in this source applies only to hooks deployed from
+this version; already deployed hooks retain their existing fee.
 
 - [Deployment runbook](docs/DEPLOYMENT.md) — inputs, preflight, broadcast, and pool initialization.
 - [Chain configuration](script/config/chains.json) — configured networks and readiness.

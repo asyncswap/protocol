@@ -132,7 +132,9 @@ contract AsyncSwapTest is SetupHook {
         // Filler received amountIn of real token0 in exchange.
         assertEq(token0.balanceOf(bob) - bobToken0Before, amountIn, "filler got real token0");
         assertEq(
-            bobToken1Before - token1.balanceOf(bob), amountOutMin + uint256(amountOutMin) / 499, "filler paid token1"
+            bobToken1Before - token1.balanceOf(bob),
+            amountOutMin + hook.calculatePoolFee(key.fee, amountOutMin),
+            "filler paid token1"
         );
         assertEq(aliceToken0Before, token0.balanceOf(alice), "maker token0 unchanged post-fill");
     }
@@ -251,7 +253,9 @@ contract AsyncSwapTest is SetupHook {
         // received currency1 (the maker's input).
         assertEq(token0.balanceOf(alice) - aliceToken0Before, amountOutMin, "maker received real token0");
         assertEq(
-            bobToken0Before - token0.balanceOf(bob), amountOutMin + uint256(amountOutMin) / 499, "filler paid token0"
+            bobToken0Before - token0.balanceOf(bob),
+            amountOutMin + hook.calculatePoolFee(key.fee, amountOutMin),
+            "filler paid token0"
         );
         assertEq(token1.balanceOf(bob) - bobToken1Before, amountIn, "filler received token1");
     }
@@ -336,7 +340,9 @@ contract AsyncSwapTest is SetupHook {
 
         // Filler paid the *updated* 1.1 ether, not the original 0.8 ether.
         assertEq(
-            bobToken1Before - token1.balanceOf(bob), 1.1 ether + uint256(1.1 ether) / 499, "filler paid updated price"
+            bobToken1Before - token1.balanceOf(bob),
+            1.1 ether + hook.calculatePoolFee(key.fee, 1.1 ether),
+            "filler paid updated price"
         );
         assertEq(token1.balanceOf(alice) - aliceToken1Before, 1.1 ether, "maker received updated price");
     }

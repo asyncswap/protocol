@@ -194,10 +194,11 @@ contract H06_NativeReentrancyDefenseTest is Test {
         maker.arm(order);
 
         uint256 makerEthBefore = address(maker).balance;
+        uint256 fee = hook.calculatePoolFee(order.key.fee, amountOutMin);
 
         // Honest fill; the malicious maker's receive() will try to re-enter.
         vm.prank(bob);
-        router.fillOrder{value: amountOutMin + uint256(amountOutMin) / 499}(order, type(uint256).max, "");
+        router.fillOrder{value: amountOutMin + fee}(order, type(uint256).max, "");
 
         emit log_named_uint("reentry attempts", maker.reentryAttempts());
         emit log_named_uint("reentry successes", maker.reentrySuccesses());
@@ -292,8 +293,9 @@ contract H06_NativeReentrancyDefenseTest is Test {
         order.salt = _expectedSalt(alice, amountIn, amountOutMin);
 
         uint256 aliceEthBefore = alice.balance;
+        uint256 fee = hook.calculatePoolFee(order.key.fee, amountOutMin);
         vm.prank(bob);
-        router.fillOrder{value: amountOutMin + uint256(amountOutMin) / 499}(order, type(uint256).max, "");
+        router.fillOrder{value: amountOutMin + fee}(order, type(uint256).max, "");
 
         emit log_named_uint("maker ETH received", alice.balance - aliceEthBefore);
         assertEq(alice.balance - aliceEthBefore, amountOutMin, "honest fill pays maker exactly the live price");

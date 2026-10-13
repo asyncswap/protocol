@@ -219,9 +219,11 @@ contract AsyncSwap is BaseHook, EIP712 {
         return 0;
     }
 
-    /// @notice Fee added to the maker's net output: 0.2% of gross output, rounded down.
+    /// @notice Fee added to the maker's net output: 0.3% of gross output, rounded down.
     function calculatePoolFee(uint24, uint256 amount) public pure virtual returns (uint256) {
-        return amount / 499;
+        // net * 3 / 997 is equivalent to 30 bps of gross (net + fee), rounded down.
+        // Split the calculation to avoid overflowing for large uint256 amounts.
+        return (amount / 997) * 3 + ((amount % 997) * 3) / 997;
     }
 
     /// @notice Fill `order` in full. Must be called from an authorized executor (router) that has
