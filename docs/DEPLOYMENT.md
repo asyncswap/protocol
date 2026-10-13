@@ -21,9 +21,10 @@ No other network is deployment-ready in this repository. Before adding one, conf
 | --- | --- | --- |
 | `RPC_URL` | Yes | Private or provider RPC endpoint for Unichain mainnet. The wrapper verifies chain ID `130`. |
 | `DEPLOYER_ACCOUNT` | Broadcast only | Foundry keystore account. It must resolve to the protocol owner `0xb1F0982E02f9F71E60512fd47471d76610CcB556`, which the deploy script uses as `OWNER_DEFAULT`. Keep its password in the local Foundry prompt/keystore. |
-| `USDC_ADDRESS` | Yes | Unichain USDC: `0x078D782b760474a361dDA0AF3839290b0EF57AD6`. The wrapper checks this exact address and that code exists. |
 | `HOOK_SALT` | No | Optional override. Leave unset to mine a valid CREATE2 salt for the hook flags and `0x91` address prefix. |
 | `ETHERSCAN_API_KEY` | Verify only | API key for source verification on Uniscan. Never needed to deploy. |
+
+The wrapper reads Unichain's chain ID and USDC address from [`script/config/chains.json`](../script/config/chains.json), then checks that the RPC is on that chain and that the configured token has code. Do not set or copy `USDC_ADDRESS` into `.env.deploy`; chain-specific contract addresses belong in the deployment config. Networks without a verified USDC address remain ineligible for deployment.
 
 The script supplies the canonical Unichain PoolManager (`0x1F98400000000000000000000000000000000004`) and canonical Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`). The deployer must also hold enough native ETH on Unichain for gas.
 
@@ -59,7 +60,6 @@ Then set at least:
 ```sh
 RPC_URL=https://mainnet.unichain.org   # or a private provider URL
 DEPLOYER_ACCOUNT=<keystore name from step 1>
-USDC_ADDRESS=0x078D782b760474a361dDA0AF3839290b0EF57AD6
 ```
 
 `.env.deploy` is git-ignored. Do not put a raw private key in this file; use a Foundry keystore account.
@@ -68,7 +68,7 @@ USDC_ADDRESS=0x078D782b760474a361dDA0AF3839290b0EF57AD6
 
 ### Step 3: Dry run
 
-Run the preflight simulation first. It validates the chain, USDC address/code, CREATE2 salt and hook permission bits, and simulates the deployment without broadcasting:
+Run the preflight simulation first. It validates the configured chain and USDC code, CREATE2 salt and hook permission bits, and simulates the deployment without broadcasting:
 
 ```sh
 bash script/deploy-unichain.sh dry-run

@@ -36,11 +36,13 @@ asset-to-asset routing and cross-chain settlement are also outside this change.
 
 ## Deployment and compatibility
 
-Set `USDC_ADDRESS` explicitly for the chain. Constructor arguments, creation
-bytecode, mined salt, and hook address change. Deploy a new router referencing the
-new hook and initialize new USDC pools. Existing contracts and open orders stay
-on their original deployments. Frontend/indexer configuration must move only when
-the new deployment is ready; none is changed by this source update.
+Set the chain's verified USDC address in `script/config/chains.json`. Deployment
+wrappers select that value from the target chain configuration and validate it
+against the RPC; it is not a manually supplied `.env` value. Constructor
+arguments, creation bytecode, mined salt, and hook address change. Deploy a new
+router referencing the new hook and initialize new USDC pools. Existing contracts
+and open orders stay on their original deployments. Frontend/indexer configuration
+must move only when the new deployment is ready; none is changed by this source update.
 
 ## Validation
 

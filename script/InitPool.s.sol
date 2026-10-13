@@ -89,7 +89,7 @@ contract InitPoolScript is FFIHelper {
         bytes32 h = keccak256(bytes(sym));
         if (h == keccak256("ETH")) return (address(0), 18);
         if (h == keccak256("WETH")) return (0x4200000000000000000000000000000000000006, 18);
-        if (h == keccak256("USDC")) return (0x078D782b760474a361dDA0AF3839290b0EF57AD6, 6);
+        if (h == keccak256("USDC")) return (Currency.unwrap(hook.numeraire()), 6);
         if (h == keccak256("USDT")) return (0x9151434b16b9763660705744891fA906F660EcC5, 6);
         revert(string.concat("InitPool.s.sol: unknown token symbol ", sym));
     }

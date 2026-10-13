@@ -35,9 +35,10 @@ contract DeployHookScript is FFIHelper {
                 | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
 
-        // Supply the approved USDC contract for the target chain; never infer identity from a symbol.
-        Currency numeraire = Currency.wrap(vm.envAddress("USDC_ADDRESS"));
-        require(Currency.unwrap(numeraire).code.length > 0, "USDC_ADDRESS must be a deployed token");
+        // The chain wrapper resolves this from script/config/chains.json and validates its code.
+        // It is intentionally not a user-editable .env value.
+        Currency numeraire = Currency.wrap(vm.envAddress("DEPLOY_NUMERAIRE_ADDRESS"));
+        require(Currency.unwrap(numeraire).code.length > 0, "Configured USDC must be a deployed token");
         bytes memory creationCode = type(AsyncSwap).creationCode;
         bytes memory constructorArgs = abi.encode(address(manager), numeraire, OWNER);
         bytes32 initCodeHash = keccak256(abi.encodePacked(creationCode, constructorArgs));
