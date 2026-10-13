@@ -21,15 +21,15 @@ the limit price or cancel an order while it remains open.
 
 ## Contracts
 
-- [`src/AsyncSwap.sol`](src/AsyncSwap.sol) — v4 hook, order state, numeraire
+- [`src/AsyncSwap.sol`](https://github.com/asyncswap/protocol/blob/dev/src/AsyncSwap.sol) — v4 hook, order state, numeraire
   check, and fee accounting.
-- [`src/Router.sol`](src/Router.sol) — maker and filler entry points.
-- [`src/libraries/AsyncFiller.sol`](src/libraries/AsyncFiller.sol) — order
+- [`src/Router.sol`](https://github.com/asyncswap/protocol/blob/dev/src/Router.sol) — maker and filler entry points.
+- [`src/libraries/AsyncFiller.sol`](https://github.com/asyncswap/protocol/blob/dev/src/libraries/AsyncFiller.sol) — order
   storage and full-fill, reprice, and cancel logic.
 
 ## Build and test
 
-```sh
+```
 forge soldeer install
 forge build
 forge test
@@ -45,10 +45,10 @@ by initialization of new pools. Existing pools and open orders remain on their
 current hook. The 0.3% fee in this source applies only to hooks deployed from
 this version; already deployed hooks retain their existing fee.
 
-- [Deployment runbook](docs/DEPLOYMENT.md) — inputs, preflight, broadcast, and pool initialization.
-- [Chain configuration](script/config/chains.json) — configured networks and readiness.
-- [Signed-message metadata](docs/ERC-7730.md) — wallet display metadata and release checks.
-- [USDC numeraire spec](docs/specs/usdc-numeraire.md) — scope and rationale.
+- [Deployment runbook](https://github.com/asyncswap/protocol/blob/dev/docs/DEPLOYMENT.md) — inputs, preflight, broadcast, and pool initialization.
+- [Chain configuration](https://github.com/asyncswap/protocol/blob/dev/script/config/chains.json) — configured networks and readiness.
+- [Signed-message metadata](https://github.com/asyncswap/protocol/blob/dev/docs/ERC-7730.md) — wallet display metadata and release checks.
+- [USDC numeraire spec](https://github.com/asyncswap/protocol/blob/dev/docs/specs/usdc-numeraire.md) — scope and rationale.
 
 Do not enable the new deployment in the frontend or publish wallet metadata
 until the deployed addresses, supported chains, and security review are final.
