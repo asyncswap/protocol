@@ -8,6 +8,7 @@ on:
     branches: [dev]
     paths:
       - ".github/workflows/publish-forge-docs.yml"
+      - "README.md"
       - "src/**"
       - "docs/**"
       - "foundry.toml"
