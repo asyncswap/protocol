@@ -202,14 +202,14 @@ native ETH input requires a transaction.</li>
 </ul>
 <h2 id="contracts"><a class="header" href="#contracts">Contracts</a></h2>
 <ul>
-<li><a href="src/AsyncSwap.sol"><code>src/AsyncSwap.sol</code></a> — v4 hook, order state, numeraire
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/src/AsyncSwap.sol"><code>src/AsyncSwap.sol</code></a> — v4 hook, order state, numeraire
 check, and fee accounting.</li>
-<li><a href="src/Router.sol"><code>src/Router.sol</code></a> — maker and filler entry points.</li>
-<li><a href="src/libraries/AsyncFiller.sol"><code>src/libraries/AsyncFiller.sol</code></a> — order
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/src/Router.sol"><code>src/Router.sol</code></a> — maker and filler entry points.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/src/libraries/AsyncFiller.sol"><code>src/libraries/AsyncFiller.sol</code></a> — order
 storage and full-fill, reprice, and cancel logic.</li>
 </ul>
 <h2 id="build-and-test"><a class="header" href="#build-and-test">Build and test</a></h2>
-<pre><code class="language-sh">forge soldeer install
+<pre><code>forge soldeer install
 forge build
 forge test
 forge fmt --check
@@ -222,10 +222,10 @@ by initialization of new pools. Existing pools and open orders remain on their
 current hook. The 0.3% fee in this source applies only to hooks deployed from
 this version; already deployed hooks retain their existing fee.</p>
 <ul>
-<li><a href="docs/DEPLOYMENT.html">Deployment runbook</a> — inputs, preflight, broadcast, and pool initialization.</li>
-<li><a href="script/config/chains.json">Chain configuration</a> — configured networks and readiness.</li>
-<li><a href="docs/ERC-7730.html">Signed-message metadata</a> — wallet display metadata and release checks.</li>
-<li><a href="docs/specs/usdc-numeraire.html">USDC numeraire spec</a> — scope and rationale.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/docs/DEPLOYMENT.md">Deployment runbook</a> — inputs, preflight, broadcast, and pool initialization.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/script/config/chains.json">Chain configuration</a> — configured networks and readiness.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/docs/ERC-7730.md">Signed-message metadata</a> — wallet display metadata and release checks.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/docs/specs/usdc-numeraire.md">USDC numeraire spec</a> — scope and rationale.</li>
 </ul>
 <p>Do not enable the new deployment in the frontend or publish wallet metadata
 until the deployed addresses, supported chains, and security review are final.</p>

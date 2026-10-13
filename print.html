@@ -203,14 +203,14 @@ native ETH input requires a transaction.</li>
 </ul>
 <h2 id="contracts"><a class="header" href="#contracts">Contracts</a></h2>
 <ul>
-<li><a href="src/AsyncSwap.sol"><code>src/AsyncSwap.sol</code></a> — v4 hook, order state, numeraire
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/src/AsyncSwap.sol"><code>src/AsyncSwap.sol</code></a> — v4 hook, order state, numeraire
 check, and fee accounting.</li>
-<li><a href="src/Router.sol"><code>src/Router.sol</code></a> — maker and filler entry points.</li>
-<li><a href="src/libraries/AsyncFiller.sol"><code>src/libraries/AsyncFiller.sol</code></a> — order
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/src/Router.sol"><code>src/Router.sol</code></a> — maker and filler entry points.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/src/libraries/AsyncFiller.sol"><code>src/libraries/AsyncFiller.sol</code></a> — order
 storage and full-fill, reprice, and cancel logic.</li>
 </ul>
 <h2 id="build-and-test"><a class="header" href="#build-and-test">Build and test</a></h2>
-<pre><code class="language-sh">forge soldeer install
+<pre><code>forge soldeer install
 forge build
 forge test
 forge fmt --check
@@ -223,10 +223,10 @@ by initialization of new pools. Existing pools and open orders remain on their
 current hook. The 0.3% fee in this source applies only to hooks deployed from
 this version; already deployed hooks retain their existing fee.</p>
 <ul>
-<li><a href="docs/DEPLOYMENT.html">Deployment runbook</a> — inputs, preflight, broadcast, and pool initialization.</li>
-<li><a href="script/config/chains.json">Chain configuration</a> — configured networks and readiness.</li>
-<li><a href="docs/ERC-7730.html">Signed-message metadata</a> — wallet display metadata and release checks.</li>
-<li><a href="docs/specs/usdc-numeraire.html">USDC numeraire spec</a> — scope and rationale.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/docs/DEPLOYMENT.md">Deployment runbook</a> — inputs, preflight, broadcast, and pool initialization.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/script/config/chains.json">Chain configuration</a> — configured networks and readiness.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/docs/ERC-7730.md">Signed-message metadata</a> — wallet display metadata and release checks.</li>
+<li><a href="https://github.com/asyncswap/protocol/blob/dev/docs/specs/usdc-numeraire.md">USDC numeraire spec</a> — scope and rationale.</li>
 </ul>
 <p>Do not enable the new deployment in the frontend or publish wallet metadata
 until the deployed addresses, supported chains, and security review are final.</p>
@@ -235,7 +235,7 @@ until the deployed addresses, supported chains, and security review are final.</
 <li><a href="src/interfaces/ISignatureTransfer.sol/interface.ISignatureTransfer.html">ISignatureTransfer</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="isignaturetransfer"><a class="header" href="#isignaturetransfer">ISignatureTransfer</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/interfaces/ISignatureTransfer.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/interfaces/ISignatureTransfer.sol">Git Source</a></p>
 <p><strong>Title:</strong>
 ISignatureTransfer</p>
 <p>Minimal subset of Uniswap Permit2's SignatureTransfer interface used by the Router.
@@ -279,7 +279,7 @@ Canonical Permit2 lives at 0x000000000022D473030F116dDEE9F6B43aC78BA3 on every c
 <li><a href="src/libraries/OrderSignatures.sol/library.OrderSignatures.html">OrderSignatures</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="asyncfiller"><a class="header" href="#asyncfiller">AsyncFiller</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/libraries/AsyncFiller.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/libraries/AsyncFiller.sol">Git Source</a></p>
 <p><strong>Title:</strong>
 AsyncFiller</p>
 <p><strong>Author:</strong>
@@ -392,7 +392,7 @@ a successful fill deletes the record entirely.</p>
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="currencysettler"><a class="header" href="#currencysettler">CurrencySettler</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/libraries/CurrencySettler.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/libraries/CurrencySettler.sol">Git Source</a></p>
 <p><strong>Title:</strong>
 CurrencySettler</p>
 <p>Production copy of v4-core's test-only <code>CurrencySettler</code>, using safe transfers so tokens
@@ -424,7 +424,7 @@ that return no data from <code>transfer</code> / <code>transferFrom</code> (e.g.
 <tr><td><code>claims</code></td><td><code>bool</code></td><td>If true, mint ERC-6909 claims instead of transferring tokens.</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="ordersignatures"><a class="header" href="#ordersignatures">OrderSignatures</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/libraries/OrderSignatures.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/libraries/OrderSignatures.sol">Git Source</a></p>
 <p><strong>Title:</strong>
 OrderSignatures</p>
 <p><strong>Author:</strong>
@@ -535,7 +535,7 @@ cancel), so order deletion alone does not stop a signed cancel from being replay
 <li><a href="src/types/AsyncOrder.sol/library.AsyncOrderLibrary.html">AsyncOrderLibrary</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="asyncorder"><a class="header" href="#asyncorder">AsyncOrder</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/types/AsyncOrder.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/types/AsyncOrder.sol">Git Source</a></p>
 <p>Represents an async order for a swap in the Uniswap V4 pool.</p>
 <pre><code class="language-solidity">struct AsyncOrder {
 PoolKey key;
@@ -558,7 +558,7 @@ bytes32 salt;
 <tr><td><code>salt</code></td><td><code>bytes32</code></td><td>Contract-assigned salt that disambiguates orders. The hook computes this at create time from <code>keccak256(timestamp, block.number, msg.sender, owner, amountIn, amountOutMin)</code> and emits it in <code>AsyncOrderCreated</code> so the maker can reference the order in cancel / updatePrice. Submitters pass <code>bytes32(0)</code> on create — the value in this slot is only read on cancel / updatePrice / fill paths.</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="asyncorderlibrary"><a class="header" href="#asyncorderlibrary">AsyncOrderLibrary</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/types/AsyncOrder.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/types/AsyncOrder.sol">Git Source</a></p>
 <p><strong>Title:</strong>
 AsyncOrderLibrary</p>
 <p>Helpers attached to AsyncOrder for identity and pricing.</p>
@@ -581,7 +581,7 @@ log) so the maker can pass it back when calling cancel / updatePrice / fill.
 <pre><code class="language-solidity">function priceWad(AsyncOrder calldata order) internal pure returns (uint256);
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="asyncswap"><a class="header" href="#asyncswap">AsyncSwap</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/AsyncSwap.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/AsyncSwap.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 <a href="src/AsyncSwap.sol//src/BaseHook.sol/abstract.BaseHook.html">BaseHook</a>, EIP712</p>
 <p><strong>Title:</strong>
@@ -863,7 +863,7 @@ order in cancel / updatePrice later.</p>
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="basehook"><a class="header" href="#basehook">BaseHook</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/BaseHook.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/BaseHook.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 IHooks, <a href="src/BaseHook.sol//src/ImmutableState.sol/contract.ImmutableState.html">ImmutableState</a></p>
 <p><strong>Title:</strong>
@@ -1184,13 +1184,13 @@ and then etch the bytecode into the correct address</p>
 <pre><code class="language-solidity">error HookNotImplemented();
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ifeeowner"><a class="header" href="#ifeeowner">IFeeOwner</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/FeeVault.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/FeeVault.sol">Git Source</a></p>
 <h2 id="functions-7"><a class="header" href="#functions-7">Functions</a></h2>
 <h3 id="owner-1"><a class="header" href="#owner-1">owner</a></h3>
 <pre><code class="language-solidity">function owner() external view returns (address);
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="feevault-1"><a class="header" href="#feevault-1">FeeVault</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/FeeVault.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/FeeVault.sol">Git Source</a></p>
 <p>Holds and redeems protocol fee claims, never maker escrow.</p>
 <h2 id="state-variables-2"><a class="header" href="#state-variables-2">State Variables</a></h2>
 <h3 id="poolmanager"><a class="header" href="#poolmanager">poolManager</a></h3>
@@ -1223,7 +1223,7 @@ and then etch the bytecode into the correct address</p>
 <pre><code class="language-solidity">error ZeroAddress();
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="immutablestate"><a class="header" href="#immutablestate">ImmutableState</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/ImmutableState.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/ImmutableState.sol">Git Source</a></p>
 <p><strong>Title:</strong>
 Immutable State</p>
 <p>A collection of immutable state variables, commonly used across multiple contracts</p>
@@ -1245,7 +1245,7 @@ Immutable State</p>
 <pre><code class="language-solidity">error NotPoolManager();
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="router"><a class="header" href="#router">Router</a></h1>
-<p><a href="https://github.com/asyncswap/protocol/blob/abb16e4e8d1858e919ba211253c7f3b8e7dda4b1/src/Router.sol">Git Source</a></p>
+<p><a href="https://github.com/asyncswap/protocol/blob/e230f5b6b54bfb88e75e5e0eaadb04367a445769/src/Router.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 EIP712</p>
 <p><strong>Title:</strong>
