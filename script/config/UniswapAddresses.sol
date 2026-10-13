@@ -16,12 +16,18 @@ library UniswapAddresses {
         return address(0);
     }
 
-    /// @notice Indexer start block for the canonical PoolManager. 0 = "scan from genesis".
+    /// @notice First block to scan for the canonical PoolManager, inclusive.
     function poolManagerStartBlock(uint256 chainId) internal pure returns (uint256) {
-        if (chainId == CHAIN_ID_MAINNET) return 0;
+        // Ethereum PoolManager creation transaction: block 21,688,329.
+        if (chainId == CHAIN_ID_MAINNET) return 21_688_329;
+
+        // Unichain's canonical PoolManager is installed at its genesis address.
         if (chainId == CHAIN_ID_UNICHAIN) return 0;
-        if (chainId == CHAIN_ID_UNICHAIN_SEPOLIA) return 0;
-        return 0;
+
+        // Unichain Sepolia PoolManager creation transaction: block 7,092,034.
+        if (chainId == CHAIN_ID_UNICHAIN_SEPOLIA) return 7_092_034;
+
+        revert("Unknown canonical PoolManager chain");
     }
 
     function hasCanonicalPoolManager(uint256 chainId) internal pure returns (bool) {
